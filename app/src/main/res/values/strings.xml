@@ -2,48 +2,123 @@
 <resources>
     <string name="app_name">CoreSMS</string>
 
+    <!-- Setup -->
     <string name="setup_default_title">Make CoreSMS your SMS app</string>
-    <string name="setup_default_body">Android only lets one app send and receive texts. CoreSMS needs to be that app to work.</string>
+    <string name="setup_default_body">Android only lets one app send and receive texts. CoreSMS needs to be that app to work. Your existing messages come with it.</string>
     <string name="setup_default_button">Set as default SMS app</string>
-
     <string name="setup_blocked_title">Android blocked the change</string>
     <string name="setup_blocked_body">Apps installed outside an app store need one extra step. Open App info, tap the ⋮ menu, choose \"Allow restricted settings\", then come back and try again.</string>
     <string name="setup_blocked_button">Open App info</string>
 
-    <string name="setup_permissions_title">Allow access</string>
-    <string name="setup_permissions_body">CoreSMS needs to read your texts and contacts, know which SIM you use, and show notifications.</string>
-    <string name="setup_permissions_button">Allow</string>
+    <!-- Conversation list -->
+    <string name="list_title">Messages</string>
+    <string name="list_earlier">Earlier</string>
+    <string name="list_caught_up">You\'re all caught up</string>
+    <string name="list_caught_up_hint">Earlier conversations are below</string>
+    <string name="banner_permissions_title">Allow access</string>
+    <string name="banner_permissions_body">CoreSMS needs your contacts for names and photos, your phone number for group messages, and permission to notify you.</string>
+    <string name="banner_number_title">Add your phone number</string>
+    <string name="banner_number_body">Your SIM doesn\'t report its number. Group messages need it to stay in one conversation.</string>
+    <string name="banner_number_button">Add number</string>
+    <string name="allow">Allow</string>
+    <string name="search">Search</string>
+    <string name="search_hint">Search conversations</string>
+    <string name="settings">Settings</string>
+    <string name="pin">Pin</string>
+    <string name="unpin">Unpin</string>
+    <string name="mark_read">Mark as read</string>
+    <string name="mark_unread">Mark as unread</string>
+    <string name="delete">Delete</string>
+    <string name="delete_conversation_title">Delete conversation?</string>
+    <string name="delete_conversation_body">All messages with %1$s will be deleted from this phone.</string>
 
-    <string name="early_build_title">Early build</string>
-    <string name="early_build_body">This version sends and receives plain texts. It can\'t download picture or group messages (MMS) yet. Any that arrive are saved so they can be downloaded once that\'s built, if the carrier still has them. Keep your usual messaging app as the default for everyday use.</string>
-    <plurals name="saved_mms_notices">
-        <item quantity="one">%d MMS message saved for later</item>
-        <item quantity="other">%d MMS messages saved for later</item>
+    <!-- Conversation -->
+    <plurals name="thread_people">
+        <item quantity="one">%1$d person</item>
+        <item quantity="other">%1$d people</item>
     </plurals>
-
-    <string name="recent_texts">Recent texts</string>
-    <string name="recent_texts_empty">No texts yet.</string>
-    <string name="recent_text_failed">Not sent</string>
-    <string name="change_default">Change default SMS app</string>
-
-    <string name="new_message">New message</string>
-    <string name="cancel">Cancel</string>
+    <string name="thread_sending">Sending…</string>
+    <string name="thread_sent">Sent</string>
+    <string name="thread_failed">Not sent · tap to retry</string>
+    <string name="thread_error_no_recipients">This conversation has no recipients.</string>
+    <string name="thread_error_too_large">%1$s is too big for MMS (your carrier allows about %2$d KB). Try a shorter video.</string>
+    <string name="composer_hint_sms">Text message</string>
+    <string name="composer_hint_mms">MMS</string>
+    <string name="attach">Add photos or videos</string>
     <string name="send">Send</string>
-    <string name="compose_to">To</string>
-    <string name="compose_message">Message</string>
-    <string name="compose_sending">Sending…</string>
-    <string name="compose_not_default">CoreSMS isn\'t your default SMS app, so it can\'t send texts.</string>
-    <string name="compose_error_no_recipient">Enter a phone number.</string>
-    <string name="compose_error_group">Group messages aren\'t supported yet. Send to one person.</string>
-    <string name="compose_error_empty">Write a message first.</string>
+    <string name="call">Call</string>
+    <string name="copy">Copy</string>
+    <string name="save">Save</string>
+    <string name="saved">Saved</string>
+    <string name="save_failed">Couldn\'t save</string>
+    <string name="share">Share</string>
+    <string name="retry">Retry</string>
+    <string name="remove">Remove</string>
+    <string name="close">Close</string>
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="attachment_no_app">No app can open this attachment</string>
+
+    <!-- MMS download -->
+    <string name="mms_downloading">Downloading picture message…</string>
+    <string name="mms_failed_tap">Couldn\'t download · tap to retry</string>
+    <string name="mms_expired">Expired before it could be downloaded</string>
+    <string name="mms_expires">expires %1$s</string>
+    <string name="mms_error_settings">Your carrier\'s MMS settings (APN) look wrong</string>
+    <string name="mms_error_connect">Couldn\'t reach your carrier\'s MMS server</string>
+    <string name="mms_error_gone">The carrier no longer has this message</string>
+    <string name="mms_error_http">The carrier\'s MMS server returned an error (%1$d)</string>
+    <string name="mms_error_io">The connection dropped during the download</string>
+    <string name="mms_error_retry">The carrier asked to try again later</string>
+    <string name="mms_error_no_data">No mobile data connection</string>
+    <string name="mms_error_sim">The SIM for this message isn\'t active</string>
+    <string name="mms_error_data_off">Mobile data is off. MMS needs mobile data, even on Wi‑Fi</string>
+    <string name="mms_error_carrier_disabled">Your carrier has turned off MMS</string>
+    <string name="mms_error_timeout">The carrier took too long to respond</string>
+    <string name="mms_error_unknown">Something went wrong (error %1$d)</string>
+    <string name="mms_error_expired">Expired at the carrier</string>
+    <string name="mms_error_start">Couldn\'t start the download: %1$s</string>
+    <string name="mms_error_unreadable">The downloaded message couldn\'t be read</string>
+    <string name="mms_error_save">The message couldn\'t be saved</string>
+    <string name="mms_error_carrier_status">The carrier couldn\'t provide the message (status %1$d)</string>
+
+    <!-- Previews -->
+    <string name="preview_photo">📷 Photo</string>
+    <string name="preview_video">🎥 Video</string>
+    <string name="preview_audio">🎤 Audio</string>
+    <string name="preview_contact">👤 Contact card</string>
+    <string name="preview_attachment">📎 Attachment</string>
+    <string name="preview_mms_waiting">Picture message waiting to download</string>
+    <string name="unknown_sender">Unknown</string>
+
+    <!-- New message -->
+    <string name="new_message">New message</string>
+    <string name="compose_to">To:</string>
+    <string name="compose_recent">Recent</string>
+    <string name="compose_use_number">Send to %1$s</string>
+    <string name="compose_start">Next</string>
+    <string name="compose_start_group">Start group</string>
     <string name="compose_error_send">Couldn\'t send. Check your signal and try again.</string>
 
+    <!-- Settings -->
+    <string name="settings_number_title">Your phone number</string>
+    <string name="settings_number_unknown">Your SIM doesn\'t report its number. Enter it so group messages stay in one conversation.</string>
+    <string name="settings_number_from_sim">Your SIM reports %1$s. You only need to enter a number if that\'s wrong.</string>
+    <string name="settings_number_label">Phone number</string>
+    <string name="change_default">Default SMS app</string>
+    <string name="settings_default_body">Switch to another messaging app. Your messages stay on the phone.</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_body">Sounds and alerts. Long-press a message notification to set them per conversation.</string>
+    <string name="settings_version">CoreSMS %1$s</string>
+
+    <!-- Notifications -->
     <string name="channel_messages">Messages</string>
-    <string name="channel_mms">Picture and group messages</string>
-    <string name="channel_errors">Messages that didn\'t send</string>
+    <string name="channel_errors">Problems sending or downloading</string>
     <string name="notification_me">You</string>
-    <string name="notification_mms_saved_title">MMS message received</string>
-    <string name="notification_mms_saved_text">CoreSMS can\'t download picture or group messages yet. It\'s saved to download later.</string>
+    <string name="notification_reply">Reply</string>
+    <string name="notification_mark_read">Mark as read</string>
+    <string name="notification_mms_failed_title">Picture message didn\'t download</string>
+    <string name="notification_mms_failed_text">From %1$s. Open the conversation to retry.</string>
     <string name="notification_send_failed_title">Message not sent</string>
-    <string name="notification_send_failed_text">Your text to %1$s didn\'t send.</string>
+    <string name="notification_send_failed_text">Your message to %1$s didn\'t send. Tap to retry.</string>
 </resources>

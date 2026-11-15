@@ -4,30 +4,37 @@ A personal SMS/MMS app for Android, built because the existing apps keep
 showing "failed to download" on MMS with no reliable way to get the message
 back.
 
-**Status: early build.** CoreSMS can become the default SMS app, receive and
-send plain texts, and show notifications. It can't download picture or group
-messages (MMS) yet: any that arrive are saved so they can be downloaded once
-that's built. Keep your usual messaging app as the default for everyday use
-until then. [docs/RESEARCH.md](./docs/RESEARCH.md) has the full plan and
-build order.
+**Status: early, but usable for testing.** CoreSMS sends and receives texts,
+picture messages and group messages, shows reactions from iPhones and
+Android phones, and keeps every MMS until it downloads. It hasn't had much
+real-world testing yet, so expect rough edges.
+[docs/RESEARCH.md](./docs/RESEARCH.md) has the background and plan.
 
-## Goals
+## What it does
 
-- **SMS** through the standard Android APIs, as the phone's default SMS app.
-- **MMS that doesn't lose messages.** Every incoming MMS notification is saved
-  before downloading, downloads retry automatically when data comes back,
-  and any failed message keeps a Retry button until the carrier expires it.
-- **Images and video from any phone,** including HEIC photos and videos sent
-  from iPhones.
-- **Real group MMS.** Group messages go out as one MMS to everyone and come
-  back into the same group conversation, never split into individual texts.
-- **Emoji reactions** that work both ways with iPhones and Android phones.
-- **System notifications** with reply, mark as read and Android's
-  conversation features.
-- **A clean, minimal design** where the home screen shows only pinned and
-  unread conversations, with everything already read "below the screen". See
-  [docs/DESIGN.md](./docs/DESIGN.md).
-- Later: **scheduled messages** and **reminders to reply**.
+- **Conversations** with contact names and photos. The home screen shows
+  only pinned and unread conversations (plus ones you're actively in); read
+  conversations sit "below the screen" and appear as you scroll down.
+  Long-press a conversation to pin, mark read/unread or delete it.
+- **Texts and picture messages** in one thread, with iMessage-style bubbles,
+  photos and videos inline (iPhone HEIC photos included), tap for full screen,
+  long-press to save or share.
+- **MMS that doesn't get lost.** Each incoming MMS is saved the moment the
+  carrier announces it. Downloads retry on their own when they fail, and a
+  message that still won't download shows why, when it expires, and a Retry
+  button.
+- **Group messages** go out as one MMS to everyone and come back into the
+  same conversation. Start one by adding several people in New message.
+- **Sending photos and videos.** Photos are resized to fit your carrier's
+  MMS limit. Videos are sent as-is if they fit (most carriers allow about
+  1 MB); compressing longer videos isn't built yet.
+- **Reactions** that work with iPhones: long-press a message to react, and
+  reactions from iPhones and Google Messages show on the message they're for
+  instead of as separate texts.
+- **Notifications** per conversation with Reply and Mark as read, shown in
+  Android's Conversations section.
+- Share photos from the gallery straight into a conversation, and "Send
+  text" links from other apps open in CoreSMS.
 
 ## Not planned
 
@@ -77,15 +84,23 @@ the release version before installing a debug one (and the other way round).
 
 Project layout (`app/src/main/java/io/github/mk3core/coresms`):
 
+- `data`: reading conversations and messages from Android's SMS/MMS
+  database, contacts, own-number detection, pins and settings
 - `sms`: receiving (`SmsDeliverReceiver`), sending (`SmsSender`,
   `SmsStatusReceiver`), quick replies from the call screen
   (`HeadlessSmsSendService`) and `sms:` link parsing
-- `mms`: incoming MMS notices (`WapPushDeliverReceiver`) and the saved
-  notices waiting for MMS download support
-- `notify`: notification channels and contact name lookup
-- `compose`: the composer opened by "send a text" links
-- `ui`: Compose screens and theme
-- `DefaultSmsApp.kt`: the default SMS app role and permissions
+- `mms`: MMS notifications (`WapPushDeliverReceiver`, `IncomingMms`),
+  download with retries (`MmsDownloadWorker`), storage (`MmsStore`), sending
+  (`MmsSender`, `MediaPrep`) and the carrier transport (`MmsTransport`)
+- `mmslib`: MMS PDU parsing and composing, from AOSP Messaging (Apache 2.0,
+  see its README)
+- `reactions`: reading and writing iPhone-style reaction texts
+- `send/MessageSender.kt`: the single entry point for sending (SMS for one
+  person, otherwise one MMS)
+- `notify`: notifications and their Reply / Mark as read actions
+- `compose`: the new-message screen (also handles links and shares)
+- `ui`: Compose screens and theme; `ThreadActivity`, `ViewerActivity` and
+  `SettingsActivity` sit at the top level
 
 Testing SMS and MMS needs a real phone with a SIM. The emulator can fake
 incoming SMS but can't download real MMS.

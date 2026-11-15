@@ -20,18 +20,37 @@ design direction in [docs/DESIGN.md](./docs/DESIGN.md).
   `coresms-keystore-backup/` (see its README.txt). Every release must use
   the same key.
 
-## Still to decide
+## Known gaps in v0.2.0
 
-- **PDU code.** Port the MMS PDU parser/composer from AOSP Messaging, or
-  depend on klinker's android-smsmms (or Fossify's fork of it). Porting
-  means more code to own but no unmaintained dependency. Decide at step 3.
+- **Video compression.** Videos larger than the carrier's MMS limit are
+  refused with a message. Media3 Transformer could re-encode them smaller.
+- **Search** covers conversation names and the latest message only, not
+  every message.
+- **Delivery and read reports** aren't requested or shown.
+- **Swipe actions** on conversations (DESIGN.md) aren't built; long-press
+  covers pin, read/unread and delete for now.
+- **Dual SIM:** messages go out on the default SMS SIM; there's no picker.
+- **Bubbles** (floating chat heads) aren't set up, though notifications are
+  already tied to conversation shortcuts.
+- **App size.** Code shrinking (R8) is off, so the APK is larger than it
+  needs to be. Turn it on once there's a way to test release builds.
+- **Contact cards** (vCard) open in another app rather than inside CoreSMS.
 
-## Saved MMS notices from early builds
+## Decided since
 
-Until MMS download exists, `WapPushDeliverReceiver` saves each incoming MMS
-notice to `files/mms-notices/` instead of dropping it. When step 3 lands,
-process these first: parse each notice, skip any past their expiry, and
-download the rest. Then delete the folder and this note.
+- **PDU code:** ported from AOSP Messaging's `mmslib` (Apache 2.0) into
+  `app/src/main/java/io/github/mk3core/coresms/mmslib`, without its
+  `PduPersister`; CoreSMS stores messages with its own `MmsStore`.
+- **"Actively texting" window:** a conversation stays on the first screen
+  for 20 minutes after its last message (`MainActivity.ACTIVE_WINDOW_MS`).
+- **Fold height:** a full screen minus a 72dp peek of the first read
+  conversation. Tune after using it.
+
+## Saved MMS notices from v0.1.0
+
+v0.1.0 saved incoming MMS notices to `files/mms-notices/` instead of
+downloading them. Since v0.2.0, `IncomingMms.importSavedNotices` processes
+and deletes them at startup. Remove that code once no v0.1.0 installs remain.
 
 ## Later features
 

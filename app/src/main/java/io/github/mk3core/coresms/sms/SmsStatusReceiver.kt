@@ -19,7 +19,11 @@ class SmsStatusReceiver : BroadcastReceiver() {
         val sent = resultCode == Activity.RESULT_OK
         markResult(context, uri, sent, resultCode)
         if (!sent) {
-            Notifications.showSendFailed(context, intent.getStringExtra(EXTRA_ADDRESS).orEmpty())
+            val threadId = runCatching {
+                context.contentResolver.query(uri, arrayOf(Telephony.Sms.THREAD_ID), null, null, null)
+                    ?.use { if (it.moveToFirst()) it.getLong(0) else -1L }
+            }.getOrNull() ?: -1L
+            Notifications.showSendFailed(context, threadId)
         }
     }
 

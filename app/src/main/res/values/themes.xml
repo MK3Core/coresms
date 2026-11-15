@@ -5,4 +5,8 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
     </style>
+
+    <style name="Theme.CoreSMS.Viewer" parent="Theme.CoreSMS">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
 </resources>

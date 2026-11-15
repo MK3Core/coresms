@@ -1,8 +1,7 @@
 # CoreSMS design direction
 
-How the app should look and feel. Nothing here is built yet: the current
-setup screen is a placeholder, and the real UI arrives with the conversation
-list and thread screens (build step 2 in [RESEARCH.md](./RESEARCH.md)).
+How the app should look and feel. The first version of all of this shipped
+in v0.2.0; current choices, open questions and ideas are at the end.
 
 ## Principles
 
@@ -70,16 +69,20 @@ back to the top hides the history again.
 
 **Swipe actions** for pin, mark read/unread, and archive/delete.
 
+## Current choices (tune after real use)
+
+- A conversation you're actively texting in stays above the fold for 20
+  minutes after its last message.
+- The read list starts one screen height down, minus a 72dp peek.
+- Palette: a fixed CoreSMS blue for your bubbles, light gray for theirs,
+  white background in light mode and true black in dark mode. Wallpaper
+  colors (Material You) aren't used for now.
+- One to three emoji with no text are shown large, without a bubble.
+
 ## Open questions
 
-- Should a conversation you're actively texting in (read, but last message
-  only minutes ago) stay above the fold for a while, or drop below as soon
-  as it's read?
-- Should the gap before the read list be a full screen height, or smaller,
-  with the history fading in as you scroll?
 - What the other unique design elements are.
-- Theme: a fixed CoreSMS palette, Android's wallpaper colors (Material You),
-  or both as a setting. Dark mode follows the system either way.
+- Whether to offer Material You colors as an option.
 
 ## Ideas for unique elements
 

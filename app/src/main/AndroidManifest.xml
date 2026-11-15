@@ -41,6 +41,20 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ThreadActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.CoreSMS.Viewer" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
         <!--
             The four components below are what Android requires before it
             will offer an app as the default SMS app.
@@ -61,6 +75,15 @@
                 <data android:scheme="smsto" />
                 <data android:scheme="mms" />
                 <data android:scheme="mmsto" />
+            </intent-filter>
+            <!-- Sharing photos, videos or text from other apps -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
 
@@ -100,9 +123,31 @@
             </intent-filter>
         </service>
 
-        <!-- Sent/failed results for our own outgoing SMS -->
+        <!-- Sent/failed results for our own outgoing SMS and MMS -->
         <receiver
             android:name=".sms.SmsStatusReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".mms.MmsSentReceiver"
+            android:exported="false" />
+
+        <!-- Notification actions -->
+        <receiver
+            android:name=".notify.ReplyReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".notify.MarkReadReceiver"
+            android:exported="false" />
+
+        <!-- MMS files handed to Android's MMS service, and attachments shared to other apps -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.mmsfiles"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

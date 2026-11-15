@@ -5,19 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
 import android.telephony.SubscriptionManager
-import android.util.Log
-import io.github.mk3core.coresms.notify.Notifications
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Receives MMS notifications from the carrier while CoreSMS is the default
- * SMS app.
- *
- * An MMS arrives as a small notice saying "a message is waiting at this URL";
- * the message itself has to be downloaded from the carrier. Once we receive
- * the notice, no other app will, so it must never be dropped.
- *
- * Downloading isn't built yet. Until it is, the raw notice is saved to disk
- * so it can be downloaded later, as long as the carrier still holds it.
+ * SMS app. An MMS arrives as a small notice saying "a message is waiting at
+ * this URL"; once we receive it no other app will, so it's saved right away
+ * (see [IncomingMms]) before the download is attempted.
  */
 class WapPushDeliverReceiver : BroadcastReceiver() {
 
@@ -30,14 +26,17 @@ class WapPushDeliverReceiver : BroadcastReceiver() {
             SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX,
             SubscriptionManager.INVALID_SUBSCRIPTION_ID,
         )
-
-        runCatching { SavedMmsNotices.save(context, pdu, subId) }
-            .onFailure { Log.e(TAG, "Couldn't save MMS notice", it) }
-        Notifications.showMmsSaved(context)
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                IncomingMms.handlePush(context, pdu, subId)
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     private companion object {
-        const val TAG = "WapPushDeliverReceiver"
         const val MMS_MIME_TYPE = "application/vnd.wap.mms-message"
     }
 }

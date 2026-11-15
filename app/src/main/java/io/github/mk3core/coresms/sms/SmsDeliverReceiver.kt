@@ -8,6 +8,9 @@ import android.provider.Telephony
 import android.telephony.SubscriptionManager
 import android.util.Log
 import io.github.mk3core.coresms.notify.Notifications
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Receives every incoming SMS while CoreSMS is the default SMS app.
@@ -45,14 +48,20 @@ class SmsDeliverReceiver : BroadcastReceiver() {
             put(Telephony.Sms.SUBSCRIPTION_ID, subId)
         }
 
-        // The provider assigns the conversation (thread) from the address.
-        val uri = runCatching {
-            context.contentResolver.insert(Telephony.Sms.Inbox.CONTENT_URI, values)
-        }.onFailure { Log.e(TAG, "Couldn't store incoming SMS", it) }.getOrNull()
-        if (uri == null) Log.e(TAG, "Incoming SMS from $address was not stored")
-
-        // Notify even if storing failed, so the text is at least seen.
-        Notifications.showIncomingSms(context, address, body)
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // The conversation (thread) is assigned from the address.
+                values.put(Telephony.Sms.THREAD_ID, Telephony.Threads.getOrCreateThreadId(context, address))
+                val uri = runCatching {
+                    context.contentResolver.insert(Telephony.Sms.Inbox.CONTENT_URI, values)
+                }.onFailure { Log.e(TAG, "Couldn't store incoming SMS", it) }.getOrNull()
+                if (uri == null) Log.e(TAG, "Incoming SMS was not stored")
+                Notifications.updateForNewMessage(context, values.getAsLong(Telephony.Sms.THREAD_ID))
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     private companion object {

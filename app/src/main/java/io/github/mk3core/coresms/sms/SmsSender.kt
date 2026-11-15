@@ -6,9 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.provider.Telephony
-import android.telephony.SmsManager
 import android.telephony.SubscriptionManager
 import android.util.Log
 
@@ -26,7 +24,7 @@ object SmsSender {
         val messageUri = insertOutbox(context, address, body, subId)
 
         try {
-            val manager = smsManager(context, subId)
+            val manager = SmsManagers.forSubscription(context, subId)
             val parts = manager.divideMessage(body)
             if (messageUri == null) {
                 manager.sendMultipartTextMessage(address, null, parts, null, null)
@@ -63,14 +61,4 @@ object SmsSender {
         }.onFailure { Log.e(TAG, "Couldn't store outgoing SMS", it) }.getOrNull()
     }
 
-    private fun smsManager(context: Context, subId: Int): SmsManager {
-        val valid = SubscriptionManager.isValidSubscriptionId(subId)
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val manager = context.getSystemService(SmsManager::class.java)
-            if (valid) manager.createForSubscriptionId(subId) else manager
-        } else {
-            @Suppress("DEPRECATION")
-            if (valid) SmsManager.getSmsManagerForSubscriptionId(subId) else SmsManager.getDefault()
-        }
-    }
 }

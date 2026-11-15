@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- MMS PDUs being downloaded or sent -->
+    <cache-path name="mms" path="mms/" />
+    <!-- Copies of attachments being shared or opened in other apps -->
+    <cache-path name="shared" path="shared/" />
+</paths>
