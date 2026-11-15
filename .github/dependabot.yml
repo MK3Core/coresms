@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Security fixes for Gradle dependencies are opened whenever an advisory
+  # lands (repo setting: Dependabot security updates). This entry only groups
+  # them and keeps routine version-bump PRs off; open-pull-requests-limit 0
+  # does not affect security updates.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ['*']
+
+  # The workflows' actions (checkout, setup-java, etc.) get weekly update
+  # PRs, since the release workflow runs with the signing secrets.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

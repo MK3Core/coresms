@@ -1,0 +1,42 @@
+name: CI
+
+# Lints, unit-tests and builds every pull request (including Dependabot's
+# security fixes) and every push to main, so a change that breaks the app
+# shows up as a failed check before it's merged.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          # The default list includes the legacy "tools" package, which Google
+          # removed. Gradle downloads the platform and build-tools it needs.
+          packages: 'platform-tools'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Lint, unit tests and debug build
+        run: ./gradlew lintDebug testDebugUnitTest assembleDebug
+
+      - name: Upload lint report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore

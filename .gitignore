@@ -20,3 +20,6 @@ captures/
 
 # Claude Code session state
 .claude/
+
+# Release signing key backup (kept on this machine, never committed)
+coresms-keystore-backup/

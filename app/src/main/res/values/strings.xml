@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CoreSMS</string>
+
+    <string name="setup_default_title">Make CoreSMS your SMS app</string>
+    <string name="setup_default_body">Android only lets one app send and receive texts. CoreSMS needs to be that app to work.</string>
+    <string name="setup_default_button">Set as default SMS app</string>
+
+    <string name="setup_blocked_title">Android blocked the change</string>
+    <string name="setup_blocked_body">Apps installed outside an app store need one extra step. Open App info, tap the ⋮ menu, choose \"Allow restricted settings\", then come back and try again.</string>
+    <string name="setup_blocked_button">Open App info</string>
+
+    <string name="setup_permissions_title">Allow access</string>
+    <string name="setup_permissions_body">CoreSMS needs to read your texts and contacts, know which SIM you use, and show notifications.</string>
+    <string name="setup_permissions_button">Allow</string>
+
+    <string name="early_build_title">Early build</string>
+    <string name="early_build_body">This version sends and receives plain texts. It can\'t download picture or group messages (MMS) yet. Any that arrive are saved so they can be downloaded once that\'s built, if the carrier still has them. Keep your usual messaging app as the default for everyday use.</string>
+    <plurals name="saved_mms_notices">
+        <item quantity="one">%d MMS message saved for later</item>
+        <item quantity="other">%d MMS messages saved for later</item>
+    </plurals>
+
+    <string name="recent_texts">Recent texts</string>
+    <string name="recent_texts_empty">No texts yet.</string>
+    <string name="recent_text_failed">Not sent</string>
+    <string name="change_default">Change default SMS app</string>
+
+    <string name="new_message">New message</string>
+    <string name="cancel">Cancel</string>
+    <string name="send">Send</string>
+    <string name="compose_to">To</string>
+    <string name="compose_message">Message</string>
+    <string name="compose_sending">Sending…</string>
+    <string name="compose_not_default">CoreSMS isn\'t your default SMS app, so it can\'t send texts.</string>
+    <string name="compose_error_no_recipient">Enter a phone number.</string>
+    <string name="compose_error_group">Group messages aren\'t supported yet. Send to one person.</string>
+    <string name="compose_error_empty">Write a message first.</string>
+    <string name="compose_error_send">Couldn\'t send. Check your signal and try again.</string>
+
+    <string name="channel_messages">Messages</string>
+    <string name="channel_mms">Picture and group messages</string>
+    <string name="channel_errors">Messages that didn\'t send</string>
+    <string name="notification_me">You</string>
+    <string name="notification_mms_saved_title">MMS message received</string>
+    <string name="notification_mms_saved_text">CoreSMS can\'t download picture or group messages yet. It\'s saved to download later.</string>
+    <string name="notification_send_failed_title">Message not sent</string>
+    <string name="notification_send_failed_text">Your text to %1$s didn\'t send.</string>
+</resources>
