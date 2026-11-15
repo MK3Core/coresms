@@ -20,6 +20,33 @@ design direction in [docs/DESIGN.md](./docs/DESIGN.md).
   `coresms-keystore-backup/` (see its README.txt). Every release must use
   the same key.
 
+## Where we left off (2026-11-15)
+
+Paused after testing v0.3.0 on the phone (GrapheneOS, installed via Obtainium).
+
+**Open: an iPhone photo failed to download.** CoreSMS was the default app
+when it arrived. It showed "Couldn't download", and Retry spun then failed
+again several times. After switching back to the GrapheneOS Messaging app,
+its "tap to download" failed too. Both apps failing points at the carrier
+or network side (message gone or too large at the MMSC, mobile data off,
+APN settings), but CoreSMS made the first attempt, so an app-side cause
+isn't ruled out. Still needed:
+
+- The reason line under the failed bubble in CoreSMS (the small gray text
+  below "Couldn't download · tap to retry"), or `adb logcat` from the phone
+  over USB (tag `MmsDownloadWorker` logs the result code and HTTP status).
+- Whether any other picture or group messages have downloaded in CoreSMS.
+- Whether mobile data was on, or only Wi-Fi.
+
+**Planned with the fix: an MMS details view.** Long-press a failed message
+to see the result code, HTTP status, message size, expiry and attempt
+history, so failures can be diagnosed without a cable.
+
+**Ready, not released:** the thread now snaps to the newest message
+whenever one is sent or received (or a picture message finishes
+downloading), without jumping while older history loads. On branch
+`scroll-snap`; ship it with the download fix as v0.3.1.
+
 ## Known gaps
 
 - **Video compression.** Videos larger than the carrier's MMS limit are

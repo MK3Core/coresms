@@ -264,6 +264,13 @@ private fun MessageList(state: ThreadState, actions: ThreadActions, modifier: Mo
     LaunchedEffect(nearTop, state.hasOlder, placements.size) {
         if (nearTop && state.hasOlder) actions.onLoadOlder()
     }
+    // Snap to the newest message whenever one is sent or arrives (or a picture
+    // message finishes downloading). Loading older history doesn't change the
+    // newest message, so it never yanks you down while scrolling back.
+    val newestKey = placements.firstOrNull()?.message?.key
+    LaunchedEffect(newestKey) {
+        if (newestKey != null) listState.scrollToItem(0)
+    }
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
