@@ -139,6 +139,7 @@
     <string name="settings_default_body">Switch to another messaging app. Your messages stay on the phone.</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_body">Sounds and alerts. Long-press a message notification to set them per conversation.</string>
+    <string name="new_message_short">+ new</string>
     <string name="reactions_title">Reactions</string>
     <string name="reactions_you">You</string>
     <string name="reactions_someone">Someone</string>

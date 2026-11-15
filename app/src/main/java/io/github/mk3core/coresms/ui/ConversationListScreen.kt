@@ -66,6 +66,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -144,15 +145,20 @@ fun ConversationListScreen(
         },
         floatingActionButton = {
             if (!searching && !drawerOpen) {
-                FloatingActionButton(
-                    onClick = actions.onNew,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = LocalChatStyle.current.roundShape,
-                    // Sit above the Earlier drawer's peek.
-                    modifier = Modifier.padding(bottom = (peek - bottomInset).coerceAtLeast(0.dp)),
-                ) {
-                    Icon(Icons.Filled.Edit, stringResource(R.string.new_message))
+                // Sit above the Earlier drawer's peek.
+                val lift = Modifier.padding(bottom = (peek - bottomInset).coerceAtLeast(0.dp))
+                if (LocalChatStyle.current.retro) {
+                    NewMessageText(actions.onNew, lift)
+                } else {
+                    FloatingActionButton(
+                        onClick = actions.onNew,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = CircleShape,
+                        modifier = lift,
+                    ) {
+                        Icon(Icons.Filled.Edit, stringResource(R.string.new_message))
+                    }
                 }
             }
         },
@@ -347,6 +353,26 @@ private fun CaughtUp(hasEarlier: Boolean) {
     }
 }
 
+/** Retro's new-message button: plain text in a box, white on black like everything else. */
+@Composable
+private fun NewMessageText(onClick: () -> Unit, modifier: Modifier) {
+    val shape = RoundedCornerShape(4.dp)
+    Box(
+        modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.background)
+            .border(1.dp, MaterialTheme.colorScheme.onBackground, shape)
+            .clickable(onClickLabel = stringResource(R.string.new_message), onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+    ) {
+        Text(
+            stringResource(R.string.new_message_short),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+    }
+}
+
 @Composable
 private fun ListTitle() {
     Text(stringResource(R.string.list_title), style = MaterialTheme.typography.headlineMedium)
@@ -443,7 +469,7 @@ private fun ConversationRow(conversation: Conversation, emphasized: Boolean, men
                                 .padding(top = 2.dp)
                                 .heightIn(min = 20.dp)
                                 .widthIn(min = 20.dp)
-                                .background(chat.unreadDot, RoundedCornerShape(10.dp))
+                                .background(chat.unreadDot, if (LocalChatStyle.current.retro) RoundedCornerShape(4.dp) else RoundedCornerShape(10.dp))
                                 .padding(horizontal = 6.dp),
                             contentAlignment = Alignment.Center,
                         ) {

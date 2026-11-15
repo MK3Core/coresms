@@ -77,9 +77,11 @@ space rather than a place. The first screen is still just what needs you.
 - The Earlier drawer's header is 72dp tall above the navigation bar.
 - Two themes, chosen in Settings:
   - **Retro** (the default): monospace text, white on true black, with
-    color only where it means something (contact avatars, red for
-    failures). Your messages sit on dark gray, theirs in a thin outline.
-    Always dark. A first version with phosphor green, amber, a blinking
+    color only where it means something (red for failures). Your messages
+    sit on dark gray, theirs in a thin outline. No circles: avatars are
+    text like `>CC` (`>#` for an unnamed number, `>CA+` for a group), the
+    new-message button is a boxed `+ new`, and the remaining buttons and
+    badges are small rounded squares. Always dark. A first version with phosphor green, amber, a blinking
     cursor and boxed avatars was too much; plain is the point.
   - **Modern**: a fixed CoreSMS blue for your bubbles, light gray for
     theirs, white background in light mode and true black in dark mode.

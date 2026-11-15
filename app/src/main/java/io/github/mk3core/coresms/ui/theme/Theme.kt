@@ -100,7 +100,7 @@ private val RetroStyle = ChatStyle(
     bubbleTightRadius = 2.dp,
     mediaRadius = 6.dp,
     fieldShape = RoundedCornerShape(6.dp),
-    roundShape = CircleShape,
+    roundShape = RoundedCornerShape(4.dp),
     sheetRadius = 6.dp,
 )
 
@@ -224,7 +224,7 @@ private val RetroTypography = Typography().let { base ->
         displayMedium = base.displayMedium.mono(),
         displaySmall = base.displaySmall.mono(),
         headlineLarge = base.headlineLarge.mono(),
-        headlineMedium = base.headlineMedium.mono(size = 24, weight = FontWeight.SemiBold),
+        headlineMedium = base.headlineMedium.mono(size = 22, weight = FontWeight.Medium),
         headlineSmall = base.headlineSmall.mono(),
         titleLarge = base.titleLarge.mono(size = 19, weight = FontWeight.SemiBold),
         titleMedium = base.titleMedium.mono(size = 15, weight = FontWeight.SemiBold),

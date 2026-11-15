@@ -698,13 +698,14 @@ private fun ReactionsDialog(message: Message, people: List<Contact>, onDismiss: 
 
 @Composable
 private fun ReactionChips(reactions: List<Reaction>, modifier: Modifier) {
+    val chipShape = RoundedCornerShape(if (LocalChatStyle.current.retro) 4.dp else 14.dp)
     // Group by the emoji without its variation selector, show the first form seen.
     val counts = reactions.groupBy { Reactions.canonical(it.emoji) }
         .map { (_, same) -> same.first().emoji to same.size }
     Row(
         modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(14.dp))
-            .border(2.dp, MaterialTheme.colorScheme.background, RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, chipShape)
+            .border(2.dp, MaterialTheme.colorScheme.background, chipShape)
             .padding(horizontal = 7.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -727,7 +728,7 @@ private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, 
                     Box(
                         Modifier
                             .size(40.dp)
-                            .clip(CircleShape)
+                            .clip(LocalChatStyle.current.roundShape)
                             .background(if (mine) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.Transparent)
                             .clickable { onDismiss(); actions.onReact(message, emoji) },
                         contentAlignment = Alignment.Center,
