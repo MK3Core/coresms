@@ -14,7 +14,7 @@
     <string name="list_title">Messages</string>
     <string name="list_earlier">Earlier</string>
     <string name="list_caught_up">You\'re all caught up</string>
-    <string name="list_caught_up_hint">Earlier conversations are below</string>
+    <string name="list_caught_up_hint">Pull up Earlier for the rest</string>
     <string name="banner_permissions_title">Allow access</string>
     <string name="banner_permissions_body">CoreSMS needs your contacts for names and photos, your phone number for group messages, and permission to notify you.</string>
     <string name="banner_number_title">Add your phone number</string>
@@ -139,6 +139,11 @@
     <string name="settings_default_body">Switch to another messaging app. Your messages stay on the phone.</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_body">Sounds and alerts. Long-press a message notification to set them per conversation.</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_retro">Retro</string>
+    <string name="settings_theme_retro_body">Terminal text on black, green and amber</string>
+    <string name="settings_theme_modern">Modern</string>
+    <string name="settings_theme_modern_body">Rounded bubbles in blue, follows light and dark mode</string>
     <string name="settings_version">CoreSMS %1$s</string>
 
     <!-- Notifications -->

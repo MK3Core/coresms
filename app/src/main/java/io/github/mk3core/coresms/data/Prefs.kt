@@ -75,6 +75,13 @@ object Prefs {
     }
 
     /** Forgets everything about an MMS's download (on success, or before a manual retry). */
+    /** "retro" (the default) or "modern". */
+    fun themeStyle(context: Context): String = prefs(context).getString(KEY_THEME, null) ?: "retro"
+
+    fun setThemeStyle(context: Context, style: String) {
+        prefs(context).edit { putString(KEY_THEME, style) }
+    }
+
     fun clearMmsState(context: Context, messageId: Long) {
         prefs(context).edit {
             remove(KEY_MMS_ERROR_PREFIX + messageId)
@@ -85,6 +92,8 @@ object Prefs {
 
     private const val KEY_DETECTED_NUMBER = "detected_number"
     private const val KEY_MMS_ATTEMPT_PREFIX = "mms_attempt_"
+    private const val KEY_THEME = "theme_style"
+
     // "v2": marks made before v0.3.2 came from requesting the wrong link
     // (missing transaction id), so they're forgotten and retried once.
     private const val KEY_MMS_GONE_PREFIX = "mms_gone_v2_"

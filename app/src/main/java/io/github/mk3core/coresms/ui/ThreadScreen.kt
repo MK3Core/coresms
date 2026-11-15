@@ -96,6 +96,7 @@ import io.github.mk3core.coresms.data.Phone
 import io.github.mk3core.coresms.reactions.Reaction
 import io.github.mk3core.coresms.reactions.Reactions
 import io.github.mk3core.coresms.ui.theme.BubbleText
+import io.github.mk3core.coresms.ui.theme.LocalChatStyle
 import io.github.mk3core.coresms.ui.theme.LocalChatColors
 
 data class ThreadState(
@@ -414,8 +415,9 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
 private fun BubbleContent(message: Message, placement: Placement, actions: ThreadActions) {
     val chat = LocalChatColors.current
     val outgoing = !message.incoming
-    val big = 20.dp
-    val small = 6.dp
+    val style = LocalChatStyle.current
+    val big = style.bubbleRadius
+    val small = style.bubbleTightRadius
     val shape = if (outgoing) {
         RoundedCornerShape(
             topStart = big,
@@ -432,11 +434,21 @@ private fun BubbleContent(message: Message, placement: Placement, actions: Threa
         )
     }
     val background = when {
-        message.status == MessageStatus.Failed -> chat.failed.copy(alpha = 0.85f)
+        message.status == MessageStatus.Failed -> chat.failed.copy(alpha = if (style.retro) 0.14f else 0.85f)
         outgoing -> chat.outgoingBubble
         else -> chat.incomingBubble
     }
-    val textColor = if (outgoing) chat.onOutgoingBubble else chat.onIncomingBubble
+    val textColor = when {
+        style.retro && message.status == MessageStatus.Failed -> chat.failed
+        outgoing -> chat.onOutgoingBubble
+        else -> chat.onIncomingBubble
+    }
+    val outline = when {
+        !style.retro -> chat.bubbleOutline
+        message.status == MessageStatus.Failed -> chat.failed.copy(alpha = 0.5f)
+        outgoing -> chat.onOutgoingBubble.copy(alpha = 0.35f)
+        else -> chat.bubbleOutline
+    }
 
     Column(
         Modifier.widthIn(max = 290.dp),
@@ -458,7 +470,13 @@ private fun BubbleContent(message: Message, placement: Placement, actions: Threa
             if (isBigEmoji(body)) {
                 Text(body, fontSize = 44.sp, modifier = Modifier.padding(horizontal = 4.dp))
             } else {
-                Box(Modifier.clip(shape).background(background).padding(horizontal = 14.dp, vertical = 9.dp)) {
+                Box(
+                    Modifier
+                        .clip(shape)
+                        .background(background)
+                        .border(1.dp, outline, shape)
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                ) {
                     Text(linkify(body, textColor), style = BubbleText, color = textColor)
                 }
             }
@@ -532,7 +550,7 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, onOpen: ()
     when {
         attachment.isImage || attachment.isVideo -> Box(
             Modifier
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius))
                 .clickable(onClick = onOpen),
             contentAlignment = Alignment.Center,
         ) {
@@ -556,7 +574,7 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, onOpen: ()
         }
         else -> Row(
             Modifier
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius))
                 .background(if (outgoing) chat.outgoingBubble else chat.incomingBubble)
                 .clickable(onClick = onOpen)
                 .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -593,7 +611,7 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, onOpen: ()
 private fun MediaGrid(items: List<Attachment>, onOpen: (Attachment) -> Unit) {
     val chat = LocalChatColors.current
     Column(
-        Modifier.width(250.dp).clip(RoundedCornerShape(18.dp)),
+        Modifier.width(250.dp).clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius)),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         items.chunked(2).forEach { row ->
@@ -793,7 +811,7 @@ private fun Composer(state: ThreadState, actions: ThreadActions) {
                 Modifier
                     .weight(1f)
                     .heightIn(min = 44.dp)
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, LocalChatStyle.current.fieldShape)
                     .padding(horizontal = 16.dp, vertical = 11.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
@@ -820,18 +838,18 @@ private fun Composer(state: ThreadState, actions: ThreadActions) {
                 Modifier
                     .padding(bottom = 2.dp)
                     .size(40.dp)
-                    .clip(CircleShape)
+                    .clip(LocalChatStyle.current.roundShape)
                     .background(if (canSend) MaterialTheme.colorScheme.primary else chat.incomingBubble)
                     .clickable(enabled = canSend, onClick = actions.onSend),
                 contentAlignment = Alignment.Center,
             ) {
                 if (state.sending) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
                         stringResource(R.string.send),
-                        tint = if (canSend) Color.White else chat.subtle,
+                        tint = if (canSend) MaterialTheme.colorScheme.onPrimary else chat.subtle,
                         modifier = Modifier.size(20.dp),
                     )
                 }

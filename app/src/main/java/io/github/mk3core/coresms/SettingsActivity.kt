@@ -40,6 +40,15 @@ import io.github.mk3core.coresms.data.Prefs
 import io.github.mk3core.coresms.data.SelfNumbers
 import io.github.mk3core.coresms.ui.theme.CoreSmsTheme
 import io.github.mk3core.coresms.ui.theme.LocalChatColors
+import io.github.mk3core.coresms.ui.theme.ThemeChoice
+import io.github.mk3core.coresms.ui.theme.ThemeStyle
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,6 +103,7 @@ private fun SettingsScreen(onBack: () -> Unit) {
                     Text(stringResource(if (saved) R.string.saved else R.string.save))
                 }
             }
+            ThemePicker()
             SettingRow(stringResource(R.string.change_default), stringResource(R.string.settings_default_body)) {
                 context.startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
             }
@@ -110,6 +120,38 @@ private fun SettingsScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.labelMedium,
                 color = LocalChatColors.current.subtle,
             )
+        }
+    }
+}
+
+@Composable
+private fun ThemePicker() {
+    val context = LocalContext.current
+    val current = ThemeChoice.current()
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(R.string.settings_theme), style = MaterialTheme.typography.titleMedium)
+        listOf(
+            ThemeStyle.Retro to R.string.settings_theme_retro,
+            ThemeStyle.Modern to R.string.settings_theme_modern,
+        ).forEach { (style, label) ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .selectable(selected = current == style, role = Role.RadioButton) { ThemeChoice.set(context, style) }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = current == style, onClick = null)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(stringResource(label), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(if (style == ThemeStyle.Retro) R.string.settings_theme_retro_body else R.string.settings_theme_modern_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = LocalChatColors.current.subtle,
+                    )
+                }
+            }
         }
     }
 }

@@ -47,12 +47,13 @@ empty screen instead of a wall of history.
 hint that past conversations are below, such as a small chevron or the top
 edge of the first read conversation peeking up from the bottom.
 
-**Below the fold:** read conversations, newest first, in a lighter style
-(regular weight, muted preview). It's one continuous scroll, not a separate
-screen or tab, so it feels like the history is physically underneath. The
-fold itself is a deliberate gap: the read list starts at least one screen
-height down, so the first screen really is just what needs you. Scrolling
-back to the top hides the history again.
+**The Earlier drawer** (since v0.4.0): read conversations, newest first, in
+a lighter style (regular weight, muted preview), live in a drawer whose
+header peeks up from the bottom ("Earlier" and a count). Drag it up or tap
+the header to pull the history over the list; drag down, tap again or press
+Back to put it away. This replaced the first version, a single long scroll
+with read conversations one screen further down, which felt like empty
+space rather than a place. The first screen is still just what needs you.
 
 **Details to get right:**
 
@@ -73,10 +74,16 @@ back to the top hides the history again.
 
 - A conversation you're actively texting in stays above the fold for 20
   minutes after its last message.
-- The read list starts one screen height down, minus a 72dp peek.
-- Palette: a fixed CoreSMS blue for your bubbles, light gray for theirs,
-  white background in light mode and true black in dark mode. Wallpaper
-  colors (Material You) aren't used for now.
+- The Earlier drawer's header is 72dp tall above the navigation bar.
+- Two themes, chosen in Settings:
+  - **Retro** (the default): a terminal look. Monospace text everywhere,
+    near-black background, phosphor green for text and actions, amber for
+    your messages and anything unread, thin outlines instead of filled
+    bubbles, square corners, and a `> messages` title with a blinking
+    cursor. Always dark.
+  - **Modern**: a fixed CoreSMS blue for your bubbles, light gray for
+    theirs, white background in light mode and true black in dark mode.
+  Wallpaper colors (Material You) aren't used.
 - One to three emoji with no text are shown large, without a bubble.
 
 ## Open questions

@@ -14,8 +14,10 @@ real-world testing yet, so expect rough edges.
 
 - **Conversations** with contact names and photos. The home screen shows
   only pinned and unread conversations (plus ones you're actively in); read
-  conversations sit "below the screen" and appear as you scroll down.
+  conversations live in the Earlier drawer at the bottom, which you pull up.
   Long-press a conversation to pin, mark read/unread or delete it.
+- **Two themes:** Retro (the default), a terminal look in monospace green
+  and amber, and Modern, rounded blue bubbles. Switch in Settings.
 - **Texts and picture messages** in one thread, with iMessage-style bubbles,
   photos and videos inline (iPhone HEIC photos included), tap for full screen,
   long-press to save or share.
