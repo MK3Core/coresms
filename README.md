@@ -16,8 +16,8 @@ real-world testing yet, so expect rough edges.
   pinned conversations across the top, then everything newest first, with
   unread ones in bold.
   Long-press a conversation to pin, mark read/unread or delete it.
-- **Two themes:** Retro (the default), plain monospace text in white on
-  black, and Modern, rounded blue bubbles. Switch in Settings.
+- **Two themes:** Boringer (the default), plain monospace text in white on
+  black, and Boring, rounded blue bubbles. Switch in Settings.
 - **Texts and picture messages** in one thread, with iMessage-style bubbles,
   photos and videos inline (iPhone HEIC photos included), tap for full screen,
   long-press to save or share.
@@ -40,7 +40,8 @@ real-world testing yet, so expect rough edges.
 - **Sending photos and videos.** Photos are resized to fit your carrier's
   MMS limit. Videos are sent as-is if they fit (most carriers allow about
   1 MB); compressing longer videos isn't built yet.
-- **Reactions** that work with iPhones: tap a message to react, and
+- **Reactions** that work with iPhones: tap a message to react (tap and hold for copy,
+  details and delete), and
   reactions from iPhones and Google Messages show on the message they're for
   instead of as separate texts, listed under the message with who sent
   each one.

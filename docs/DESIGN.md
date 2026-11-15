@@ -74,18 +74,19 @@ idea is still open.
 - A conversation you're actively texting in stays above the fold for 20
   minutes after its last message.
 - Every message shows its time: under the bubble, or after the sender's
-  name above it in a group. Tapping a message opens the reaction menu.
+  name above it in a group. Tapping a message opens only the reactions; tap and hold opens Copy, Save,
+  Details, Delete and the rest, so a quick tap can't trigger them.
   Reactions are a quiet line under the message listing each emoji and who
   sent it, always visible; there's no badge on the bubble's corner.
 - Two themes, chosen in Settings:
-  - **Retro** (the default): monospace text, white on true black, with
+  - **Boringer** (internally "Retro", the default): monospace text, white on true black, with
     color only where it means something (red for failures). Your messages
     sit on dark gray, theirs in a thin outline. No circles: avatars are
     initials as text like `CC` (`#` for an unnamed number, `CA+` for a group), the
     new-message button is a boxed `+ new`, and the remaining buttons and
     badges are small rounded squares. Always dark. A first version with phosphor green, amber, a blinking
     cursor and boxed avatars was too much; plain is the point.
-  - **Modern**: a fixed CoreSMS blue for your bubbles, light gray for
+  - **Boring** (internally "Modern"): a fixed CoreSMS blue for your bubbles, light gray for
     theirs, white background in light mode and true black in dark mode.
   Wallpaper colors (Material You) aren't used.
 - One to three emoji with no text are shown large, without a bubble.

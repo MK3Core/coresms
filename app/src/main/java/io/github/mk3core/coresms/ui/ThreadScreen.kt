@@ -47,7 +47,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -344,6 +343,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
     val context = LocalContext.current
     val chat = LocalChatColors.current
     val outgoing = !message.incoming
+    var reactOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val sender = message.sender?.let { address -> people.firstOrNull { Phone.same(it.address, address) } ?: Contact(address, null, null) }
     val time = Times.time(context, message.date)
@@ -375,6 +375,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                             when {
                                 message.pending != null && message.pending.canRetry -> actions.onRetry(message)
                                 message.status == MessageStatus.Failed -> actions.onRetry(message)
+                                canReact(message) -> reactOpen = true
                                 else -> menuOpen = true
                             }
                         },
@@ -383,6 +384,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                 ) {
                     BubbleContent(message, placement, actions)
                 }
+                ReactionMenu(message, reactOpen, onDismiss = { reactOpen = false }, actions)
                 MessageMenu(message, menuOpen, onDismiss = { menuOpen = false }, actions)
             }
         }
@@ -663,11 +665,13 @@ private fun ReactionLine(message: Message, people: List<Contact>, modifier: Modi
     )
 }
 
+private fun canReact(message: Message) = message.pending == null && message.status != MessageStatus.Failed
+
+/** Tap: just the reactions, so a quick tap can never copy or delete. */
 @Composable
-private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, actions: ThreadActions) {
-    val context = LocalContext.current
+private fun ReactionMenu(message: Message, open: Boolean, onDismiss: () -> Unit, actions: ThreadActions) {
     DropdownMenu(expanded = open, onDismissRequest = onDismiss) {
-        if (message.pending == null && message.status != MessageStatus.Failed) {
+        if (canReact(message)) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                 (Reactions.QUICK + listOf("🔥", "🙏")).forEach { emoji ->
                     val mine = message.reactions.any { it.fromMe && Reactions.canonical(it.emoji) == Reactions.canonical(emoji) }
@@ -681,8 +685,15 @@ private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, 
                     ) { Text(emoji, fontSize = 22.sp) }
                 }
             }
-            HorizontalDivider()
         }
+    }
+}
+
+/** Tap and hold: copy, save, details, delete and the rest, kept apart from reactions. */
+@Composable
+private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, actions: ThreadActions) {
+    val context = LocalContext.current
+    DropdownMenu(expanded = open, onDismissRequest = onDismiss) {
         if (message.body.isNotEmpty()) {
             DropdownMenuItem(text = { Text(stringResource(R.string.copy)) }, onClick = { onDismiss(); actions.onCopy(message) })
         }
