@@ -37,6 +37,7 @@ class MmsSentReceiver : BroadcastReceiver() {
 
         if (accepted) {
             Prefs.setMmsError(context, id, null)
+            MmsLog.record(context, id, "Carrier accepted it")
         } else {
             val result = MmsTransport.Result(
                 ok = false,
@@ -44,7 +45,15 @@ class MmsSentReceiver : BroadcastReceiver() {
                 httpStatus = intent.getIntExtra(SmsManager.EXTRA_MMS_HTTP_STATUS, 0),
                 data = response,
             )
-            Prefs.setMmsError(context, id, MmsTransport.describe(context, result))
+            val error = MmsTransport.describe(context, result)
+            Prefs.setMmsError(context, id, error)
+            MmsLog.record(
+                context,
+                id,
+                "Send failed: $error (result ${result.resultCode}" +
+                    (if (result.httpStatus != 0) ", HTTP ${result.httpStatus}" else "") +
+                    (conf?.let { ", carrier status ${it.responseStatus}" } ?: "") + ")",
+            )
             Notifications.showSendFailed(context, threadIdOf(context, id))
         }
     }

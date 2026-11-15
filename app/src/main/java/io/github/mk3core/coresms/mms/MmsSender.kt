@@ -32,6 +32,12 @@ object MmsSender {
         val req = buildSendReq(recipients, text, media)
         val id = MmsStore.persistOutgoing(context, req, recipients, subId)
             ?: throw IllegalStateException("Couldn't save the outgoing MMS")
+        val size = (req.messageSize + 1023) / 1024
+        MmsLog.record(
+            context,
+            id,
+            "Sending to ${recipients.size} ${if (recipients.size == 1) "person" else "people"} ($size KB, ${media.size} attachment(s))",
+        )
         transmit(context, id, req, subId)
         return id
     }

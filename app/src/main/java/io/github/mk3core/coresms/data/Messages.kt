@@ -29,6 +29,8 @@ enum class DownloadState {
     NotDownloaded,
     /** Past the carrier's expiry; tapping still tries, in case the carrier kept it. */
     Expired,
+    /** The carrier says it no longer has the message (HTTP 404/410). Only a resend helps. */
+    Gone,
 }
 
 /** An MMS the carrier has told us about but we haven't downloaded yet. */
@@ -38,8 +40,11 @@ data class PendingDownload(
     val expiresAtMillis: Long?,
     val error: String?,
 ) {
-    /** Tapping asks the carrier again, unless a download is already under way. */
-    val canRetry get() = state != DownloadState.Waiting && state != DownloadState.Downloading
+    /**
+     * Tapping asks the carrier again, unless a download is already under way
+     * or the carrier has said it no longer has the message.
+     */
+    val canRetry get() = state == DownloadState.Failed || state == DownloadState.NotDownloaded || state == DownloadState.Expired
 }
 
 data class Message(
@@ -175,6 +180,7 @@ object Messages {
                     state = when {
                         queued && row.status == MmsStore.ST_DOWNLOADING -> DownloadState.Downloading
                         queued -> DownloadState.Waiting
+                        Prefs.isMmsGone(context, row.id) -> DownloadState.Gone
                         expired -> DownloadState.Expired
                         error != null -> DownloadState.Failed
                         else -> DownloadState.NotDownloaded

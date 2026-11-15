@@ -22,7 +22,10 @@ real-world testing yet, so expect rough edges.
 - **MMS that doesn't get lost.** Each incoming MMS is saved the moment the
   carrier announces it. Downloads retry on their own when they fail, and a
   message that still won't download shows why, when it expires, and a Retry
-  button that asks the carrier again, even past the stated expiry.
+  button that asks the carrier again, even past the stated expiry. If the
+  carrier no longer has it, the message says so and offers **Ask to
+  resend**. Long-press any picture message → **Details** for its full
+  history: when the carrier announced it, every attempt and the answer.
 - **Recovering old failed downloads.** MMS that another app gave up on
   ("failed to download") are found at startup and quietly requested from
   the carrier again. Recovered messages appear where they belong in the

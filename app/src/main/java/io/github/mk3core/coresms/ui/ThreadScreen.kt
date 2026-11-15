@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.mk3core.coresms.R
 import io.github.mk3core.coresms.data.Attachment
+import io.github.mk3core.coresms.data.Carrier
 import io.github.mk3core.coresms.data.Contact
 import io.github.mk3core.coresms.data.DownloadState
 import io.github.mk3core.coresms.data.Message
@@ -106,6 +107,8 @@ data class ThreadState(
     val attachments: List<android.net.Uri>,
     val sending: Boolean,
     val error: String?,
+    val details: MessageDetails? = null,
+    val resendFor: Message? = null,
 ) {
     val isGroup get() = people.size > 1
     val title: String
@@ -130,6 +133,17 @@ class ThreadActions(
     val onDelete: (Message) -> Unit,
     val onCall: (String) -> Unit,
     val onLoadOlder: () -> Unit,
+    val onShowDetails: (Message) -> Unit,
+    val onDismissDetails: () -> Unit,
+    val onAskResend: (Message) -> Unit,
+    val onConfirmResend: (Message) -> Unit,
+    val onCancelResend: () -> Unit,
+)
+
+/** What the Details dialog shows for one message. */
+data class MessageDetails(
+    val facts: List<Pair<String, String>>,
+    val history: List<Pair<String, String>>,
 )
 
 private const val GROUP_GAP_MS = 3 * 60 * 1000L
@@ -189,6 +203,30 @@ fun ThreadScreen(state: ThreadState, actions: ThreadActions) {
         bottomBar = { Composer(state, actions) },
     ) { padding ->
         MessageList(state, actions, Modifier.padding(padding))
+    }
+
+    state.details?.let { DetailsDialog(it, actions.onDismissDetails) }
+
+    state.resendFor?.let { message ->
+        val name = message.sender?.let { address ->
+            state.people.firstOrNull { Phone.same(it.address, address) }?.displayName ?: address
+        }.orEmpty()
+        AlertDialog(
+            onDismissRequest = actions.onCancelResend,
+            title = { Text(stringResource(R.string.mms_ask_resend)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.resend_explain, name), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "“" + stringResource(R.string.resend_request_text) + "”",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = LocalChatColors.current.subtle,
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { actions.onConfirmResend(message) }) { Text(stringResource(R.string.send)) } },
+            dismissButton = { TextButton(onClick = actions.onCancelResend) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 
     if (showPeople) {
@@ -405,7 +443,7 @@ private fun BubbleContent(message: Message, placement: Placement, actions: Threa
         horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        message.pending?.let { PendingBubble(message, shape) }
+        message.pending?.let { PendingBubble(message, shape, actions) }
         val visual = message.attachments.filter { it.isImage || it.isVideo }
         if (visual.size > 1) {
             MediaGrid(visual, onOpen = actions.onOpenAttachment)
@@ -429,7 +467,7 @@ private fun BubbleContent(message: Message, placement: Placement, actions: Threa
 }
 
 @Composable
-private fun PendingBubble(message: Message, shape: RoundedCornerShape) {
+private fun PendingBubble(message: Message, shape: RoundedCornerShape, actions: ThreadActions) {
     val pending = message.pending ?: return
     val context = LocalContext.current
     val chat = LocalChatColors.current
@@ -443,6 +481,7 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape) {
             DownloadState.Failed, DownloadState.NotDownloaded ->
                 Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.primary)
             DownloadState.Expired -> Icon(Icons.Filled.Refresh, null, tint = chat.subtle)
+            DownloadState.Gone -> Icon(Icons.Filled.Close, null, tint = chat.subtle)
         }
         Spacer(Modifier.width(12.dp))
         Column {
@@ -452,16 +491,21 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape) {
                     DownloadState.Failed -> stringResource(R.string.mms_failed_tap)
                     DownloadState.NotDownloaded -> stringResource(R.string.mms_not_downloaded)
                     DownloadState.Expired -> stringResource(R.string.mms_expired)
+                    DownloadState.Gone -> Carrier.name(context, message.subId)
+                        ?.let { stringResource(R.string.mms_gone_named, it) }
+                        ?: stringResource(R.string.mms_gone)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = chat.onIncomingBubble,
             )
             val expires = pending.expiresAtMillis
-                ?.takeIf { pending.state != DownloadState.Expired }
+                ?.takeIf { pending.state != DownloadState.Expired && pending.state != DownloadState.Gone }
                 ?.let { stringResource(R.string.mms_expires, Times.short(context, it)) }
+            val goneHint = stringResource(R.string.mms_gone_hint)
             val details = buildList {
-                if (pending.state != DownloadState.Downloading) pending.error?.let(::add)
+                if (pending.state == DownloadState.Gone) add(goneHint)
+                else if (pending.state != DownloadState.Downloading) pending.error?.let(::add)
                 if (pending.sizeBytes > 0) add(Formatter.formatShortFileSize(context, pending.sizeBytes))
                 expires?.let(::add)
             }
@@ -471,6 +515,12 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape) {
                     style = MaterialTheme.typography.labelSmall,
                     color = chat.subtle,
                 )
+            }
+            if (pending.state == DownloadState.Gone && message.sender != null) {
+                TextButton(
+                    onClick = { actions.onAskResend(message) },
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                ) { Text(stringResource(R.string.mms_ask_resend)) }
             }
         }
     }
@@ -639,11 +689,49 @@ private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, 
         if (message.status == MessageStatus.Failed || message.pending?.canRetry == true) {
             DropdownMenuItem(text = { Text(stringResource(R.string.retry)) }, onClick = { onDismiss(); actions.onRetry(message) })
         }
+        if (message.isMms) {
+            DropdownMenuItem(text = { Text(stringResource(R.string.details)) }, onClick = { onDismiss(); actions.onShowDetails(message) })
+        }
         DropdownMenuItem(
             text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
             onClick = { onDismiss(); actions.onDelete(message) },
         )
     }
+}
+
+@Composable
+private fun DetailsDialog(details: MessageDetails, onDismiss: () -> Unit) {
+    val chat = LocalChatColors.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+        title = { Text(stringResource(R.string.details)) },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(details.facts) { (label, value) ->
+                    Column {
+                        Text(label, style = MaterialTheme.typography.labelSmall, color = chat.subtle)
+                        Text(value, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (details.history.isNotEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.details_history),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
+                    }
+                    items(details.history) { (time, text) ->
+                        Row {
+                            Text(time, style = MaterialTheme.typography.labelSmall, color = chat.subtle, modifier = Modifier.width(84.dp))
+                            Text(text, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        },
+    )
 }
 
 @Composable

@@ -30,8 +30,10 @@ object IncomingMms {
         // Carriers resend notifications until they're acknowledged; skip
         // ones we already have (downloaded or still waiting).
         val transactionId = MmsStore.iso(ind.transactionId)
-        if (transactionId != null && MmsStore.findByTransactionId(context, transactionId) != null) {
-            Log.i(TAG, "Duplicate MMS notification $transactionId")
+        val existing = transactionId?.let { MmsStore.findByTransactionId(context, it) }
+        if (existing != null) {
+            Log.i(TAG, "Duplicate MMS notification")
+            MmsLog.record(context, existing, "Carrier announced it again (ignored, already have it)")
             return
         }
         val id = MmsStore.persistNotification(context, ind, subId)
@@ -39,6 +41,12 @@ object IncomingMms {
             Log.e(TAG, "Couldn't save MMS notification")
             return
         }
+        val size = ind.messageSize.takeIf { it > 0 }?.let { " (${(it + 1023) / 1024} KB)" }.orEmpty()
+        val expiry = ind.expiry.takeIf { it > 0 }?.let {
+            ", expires " + java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                .format(java.util.Date(it * 1000))
+        }.orEmpty()
+        MmsLog.record(context, id, "Carrier announced a picture message$size$expiry")
         MmsDownloadWorker.enqueue(context, id)
     }
 

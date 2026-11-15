@@ -20,32 +20,32 @@ design direction in [docs/DESIGN.md](./docs/DESIGN.md).
   `coresms-keystore-backup/` (see its README.txt). Every release must use
   the same key.
 
-## Where we left off (2026-11-15)
+## Diagnosed: the iPhone photo that wouldn't download (2026-11-15)
 
-Paused after testing v0.3.0 on the phone (GrapheneOS, installed via Obtainium).
+Phone logs (Pixel 9 Pro, GrapheneOS, Verizon) showed Verizon's MMS server
+answering **404 Not Found** to every request for that message: CoreSMS's
+first request at 14:47 and GrapheneOS Messaging's later. The MMS connection
+and APN work (another MMS downloaded at 14:23, and CoreSMS sent a 1 MB photo
+at 14:46). CoreSMS never received the message and then lost it. Its notice
+arrived before the phone's log window, so why Verizon had already dropped it
+is unknown.
 
-**Open: an iPhone photo failed to download.** CoreSMS was the default app
-when it arrived. It showed "Couldn't download", and Retry spun then failed
-again several times. After switching back to the GrapheneOS Messaging app,
-its "tap to download" failed too. Both apps failing points at the carrier
-or network side (message gone or too large at the MMSC, mobile data off,
-APN settings), but CoreSMS made the first attempt, so an app-side cause
-isn't ruled out. Still needed:
+v0.3.1 makes the next one explain itself and protects against losing a
+message after download:
 
-- The reason line under the failed bubble in CoreSMS (the small gray text
-  below "Couldn't download · tap to retry"), or `adb logcat` from the phone
-  over USB (tag `MmsDownloadWorker` logs the result code and HTTP status).
-- Whether any other picture or group messages have downloaded in CoreSMS.
-- Whether mobile data was on, or only Wi-Fi.
+- `MmsLog` keeps a lasting per-message history (notice received, size,
+  expiry, each attempt, the carrier's answer, acknowledgement), shown under
+  long-press → Details.
+- Downloaded messages are kept in `files/mms-downloads/` until they're
+  saved, so a carrier that serves a message only once can't lose it to a
+  save or parse error.
+- A 404/410 shows "Verizon no longer has this picture message" with
+  **Ask to resend**, which texts the sender alone, instead of a Retry that
+  can't work.
 
-**Planned with the fix: an MMS details view.** Long-press a failed message
-to see the result code, HTTP status, message size, expiry and attempt
-history, so failures can be diagnosed without a cable.
-
-**Ready, not released:** the thread now snaps to the newest message
-whenever one is sent or received (or a picture message finishes
-downloading), without jumping while older history loads. On branch
-`scroll-snap`; ship it with the download fix as v0.3.1.
+If it happens again: long-press the message → Details. The time between
+"Carrier announced" and the first "asking the carrier" shows whether it was
+a delay on our side.
 
 ## Known gaps
 

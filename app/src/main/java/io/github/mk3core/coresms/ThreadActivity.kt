@@ -21,6 +21,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.mk3core.coresms.data.Attachment
+import io.github.mk3core.coresms.data.Carrier
+import io.github.mk3core.coresms.data.DownloadState
 import io.github.mk3core.coresms.data.Contact
 import io.github.mk3core.coresms.data.Conversations
 import io.github.mk3core.coresms.data.Message
@@ -29,10 +31,12 @@ import io.github.mk3core.coresms.data.MessageStatus
 import io.github.mk3core.coresms.data.Messages
 import io.github.mk3core.coresms.mms.MediaTooLargeException
 import io.github.mk3core.coresms.mms.MmsDownloadWorker
+import io.github.mk3core.coresms.mms.MmsLog
 import io.github.mk3core.coresms.notify.Notifications
 import io.github.mk3core.coresms.reactions.ReactionFolding
 import io.github.mk3core.coresms.reactions.Reactions
 import io.github.mk3core.coresms.send.MessageSender
+import io.github.mk3core.coresms.ui.MessageDetails
 import io.github.mk3core.coresms.ui.ThreadActions
 import io.github.mk3core.coresms.ui.ThreadScreen
 import io.github.mk3core.coresms.ui.ThreadState
@@ -55,6 +59,8 @@ class ThreadActivity : ComponentActivity() {
     private var attachments by mutableStateOf(emptyList<Uri>())
     private var sending by mutableStateOf(false)
     private var error by mutableStateOf<String?>(null)
+    private var details by mutableStateOf<MessageDetails?>(null)
+    private var resendFor by mutableStateOf<Message?>(null)
 
     private val pickMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         if (uris.isNotEmpty()) attachments = (attachments + uris).distinct().take(10)
@@ -89,6 +95,8 @@ class ThreadActivity : ComponentActivity() {
                         attachments = attachments,
                         sending = sending,
                         error = error,
+                        details = details,
+                        resendFor = resendFor,
                     ),
                     actions = ThreadActions(
                         onBack = ::finish,
@@ -108,6 +116,11 @@ class ThreadActivity : ComponentActivity() {
                         },
                         onCall = { address -> startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", address, null))) },
                         onLoadOlder = ::loadOlder,
+                        onShowDetails = ::showDetails,
+                        onDismissDetails = { details = null },
+                        onAskResend = { resendFor = it },
+                        onConfirmResend = ::askToResend,
+                        onCancelResend = { resendFor = null },
                     ),
                 )
             }
@@ -208,6 +221,60 @@ class ThreadActivity : ComponentActivity() {
             runCatching { MessageSender.retry(applicationContext, message, to) }
                 .onFailure { Log.e(TAG, "Retry failed", it) }
         }
+    }
+
+    /** Texts the sender (only them, even in a group) asking for a lost picture message again. */
+    private fun askToResend(message: Message) {
+        resendFor = null
+        val sender = message.sender ?: return
+        val text = getString(R.string.resend_request_text)
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { MessageSender.send(applicationContext, listOf(sender), text) }
+                .onFailure { Log.e(TAG, "Resend request failed", it) }
+        }
+        Toast.makeText(this, getString(R.string.resend_sent), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showDetails(message: Message) {
+        lifecycleScope.launch {
+            details = withContext(Dispatchers.IO) { buildDetails(message) }
+        }
+    }
+
+    private fun buildDetails(message: Message): MessageDetails {
+        val format = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.MEDIUM)
+        val facts = mutableListOf<Pair<String, String>>()
+        facts += getString(R.string.details_type) to getString(R.string.details_type_mms)
+        facts += getString(if (message.incoming) R.string.details_received else R.string.details_sent) to format.format(java.util.Date(message.date))
+        val pending = message.pending
+        if (pending != null) {
+            facts += getString(R.string.details_status) to when (pending.state) {
+                DownloadState.Waiting -> getString(R.string.details_status_waiting)
+                DownloadState.Downloading -> getString(R.string.mms_downloading)
+                DownloadState.Failed -> getString(R.string.details_status_failed)
+                DownloadState.NotDownloaded -> getString(R.string.details_status_not_downloaded)
+                DownloadState.Expired -> getString(R.string.details_status_expired)
+                DownloadState.Gone -> getString(R.string.mms_gone)
+            }
+            if (pending.sizeBytes > 0) facts += getString(R.string.details_size) to android.text.format.Formatter.formatShortFileSize(this, pending.sizeBytes)
+            pending.expiresAtMillis?.let { facts += getString(R.string.details_expires) to format.format(java.util.Date(it)) }
+            pending.error?.let { facts += getString(R.string.details_last_error) to it }
+        } else {
+            facts += getString(R.string.details_status) to when (message.status) {
+                MessageStatus.Received -> getString(R.string.details_status_received)
+                MessageStatus.Sending -> getString(R.string.thread_sending)
+                MessageStatus.Sent -> getString(R.string.thread_sent)
+                MessageStatus.Failed -> getString(R.string.details_status_send_failed)
+            }
+            message.error?.let { facts += getString(R.string.details_last_error) to it }
+            if (message.attachments.isNotEmpty()) {
+                facts += getString(R.string.details_attachments) to message.attachments.joinToString(", ") { it.mimeType }
+            }
+        }
+        Carrier.name(this, message.subId)?.let { facts += getString(R.string.details_carrier) to it }
+        val timeFormat = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.MEDIUM)
+        val history = MmsLog.events(this, message.id).map { timeFormat.format(java.util.Date(it.time)) to it.text }
+        return MessageDetails(facts, history)
     }
 
     private fun react(message: Message, emoji: String) {
