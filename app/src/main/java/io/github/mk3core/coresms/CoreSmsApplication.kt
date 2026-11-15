@@ -4,6 +4,7 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.gif.AnimatedImageDecoder
 import coil3.video.VideoFrameDecoder
 import io.github.mk3core.coresms.notify.Notifications
 
@@ -14,9 +15,12 @@ class CoreSmsApplication : Application(), SingletonImageLoader.Factory {
         Notifications.createChannels(this)
     }
 
-    // Video thumbnails in conversations come from the first frame of the video.
+    // Animated GIFs play in conversations; video thumbnails are the first frame.
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
-            .components { add(VideoFrameDecoder.Factory()) }
+            .components {
+                add(AnimatedImageDecoder.Factory())
+                add(VideoFrameDecoder.Factory())
+            }
             .build()
 }

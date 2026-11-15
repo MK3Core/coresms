@@ -97,10 +97,14 @@ object Reactions {
         }
     }
 
-    /** True if [body] is the message [quoted] refers to (iPhones shorten long quotes with "…"). */
+    /**
+     * True if [body] is the message [quoted] refers to. iPhones shorten long
+     * quotes with "…" and turn line breaks into spaces, so whitespace is
+     * compared loosely.
+     */
     fun matches(quoted: String, body: String): Boolean {
-        val q = quoted.trim()
-        val b = body.trim()
+        val q = squash(quoted)
+        val b = squash(body)
         if (q == b) return true
         if (q.endsWith("…") || q.endsWith("...")) {
             val prefix = q.removeSuffix("…").removeSuffix("...").trimEnd()
@@ -108,6 +112,12 @@ object Reactions {
         }
         return false
     }
+
+    private val WHITESPACE = Regex("\\s+")
+    private fun squash(text: String) = text.replace(WHITESPACE, " ").trim()
+
+    /** The emoji without variation selectors, so ❤ and ❤️ count as the same reaction. */
+    fun canonical(emoji: String): String = emoji.replace("\uFE0F", "").replace("\uFE0E", "")
 
     /** A short description for previews, e.g. `❤️ to “See you at 6”`. */
     fun describe(reaction: ParsedReaction): String {

@@ -22,9 +22,16 @@ real-world testing yet, so expect rough edges.
 - **MMS that doesn't get lost.** Each incoming MMS is saved the moment the
   carrier announces it. Downloads retry on their own when they fail, and a
   message that still won't download shows why, when it expires, and a Retry
-  button.
+  button that asks the carrier again, even past the stated expiry.
+- **Recovering old failed downloads.** MMS that another app gave up on
+  ("failed to download") are found at startup and quietly requested from
+  the carrier again. Recovered messages appear where they belong in the
+  conversation.
 - **Group messages** go out as one MMS to everyone and come back into the
   same conversation. Start one by adding several people in New message.
+  CoreSMS needs your own number to keep groups together: it uses the SIM's,
+  or finds it in messages your previous app sent, or you can enter it in
+  Settings.
 - **Sending photos and videos.** Photos are resized to fit your carrier's
   MMS limit. Videos are sent as-is if they fit (most carriers allow about
   1 MB); compressing longer videos isn't built yet.

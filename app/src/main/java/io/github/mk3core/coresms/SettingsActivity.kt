@@ -54,6 +54,7 @@ class SettingsActivity : ComponentActivity() {
 private fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val fromSim = remember { SelfNumbers.fromSims(context) }
+    val detected = remember { Prefs.detectedNumber(context) }
     var number by remember { mutableStateOf(Prefs.myNumber(context).orEmpty()) }
     var saved by remember { mutableStateOf(false) }
 
@@ -73,10 +74,10 @@ private fun SettingsScreen(onBack: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.settings_number_title), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (fromSim.isEmpty()) {
-                        stringResource(R.string.settings_number_unknown)
-                    } else {
-                        stringResource(R.string.settings_number_from_sim, fromSim.joinToString(", "))
+                    when {
+                        fromSim.isNotEmpty() -> stringResource(R.string.settings_number_from_sim, fromSim.joinToString(", "))
+                        detected != null -> stringResource(R.string.settings_number_detected, detected)
+                        else -> stringResource(R.string.settings_number_unknown)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = LocalChatColors.current.subtle,

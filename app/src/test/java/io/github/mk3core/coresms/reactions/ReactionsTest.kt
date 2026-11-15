@@ -72,6 +72,19 @@ class ReactionsTest {
     }
 
     @Test
+    fun matchingIgnoresLineBreaksIphonesFlatten() {
+        assertTrue(Reactions.matches("Dinner at 7 Bring a jacket", "Dinner at 7\nBring a jacket"))
+        assertTrue(Reactions.matches("one  two", "one two\n"))
+        assertTrue(Reactions.matches("Line one line…", "Line one\nline two and more"))
+    }
+
+    @Test
+    fun heartWithAndWithoutVariationSelectorAreOneReaction() {
+        assertEquals(Reactions.canonical("❤️"), Reactions.canonical("❤"))
+        assertEquals("👍", Reactions.canonical("👍"))
+    }
+
+    @Test
     fun matchingTruncatedQuotes() {
         assertTrue(Reactions.matches("See you", "See you"))
         assertTrue(Reactions.matches("This is a long message that got cut…", "This is a long message that got cut off by the phone"))

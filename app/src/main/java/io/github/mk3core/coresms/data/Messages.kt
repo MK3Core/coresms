@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.Telephony.Mms
 import android.provider.Telephony.Sms
+import io.github.mk3core.coresms.mms.MmsDownloadWorker
 import io.github.mk3core.coresms.mms.MmsStore
 import io.github.mk3core.coresms.mmslib.pdu.EncodedStringValue
 import io.github.mk3core.coresms.mmslib.pdu.PduHeaders
@@ -18,7 +19,17 @@ data class Attachment(val uri: Uri, val mimeType: String, val name: String?) {
 
 enum class MessageStatus { Received, Sending, Sent, Failed }
 
-enum class DownloadState { Waiting, Downloading, Failed, Expired }
+enum class DownloadState {
+    /** Queued, waiting for a connection or the next retry. */
+    Waiting,
+    Downloading,
+    /** Tried and failed; tap to try again. */
+    Failed,
+    /** Never tried by CoreSMS (e.g. another app gave up on it); tap to download. */
+    NotDownloaded,
+    /** Past the carrier's expiry; tapping still tries, in case the carrier kept it. */
+    Expired,
+}
 
 /** An MMS the carrier has told us about but we haven't downloaded yet. */
 data class PendingDownload(
@@ -26,7 +37,10 @@ data class PendingDownload(
     val sizeBytes: Long,
     val expiresAtMillis: Long?,
     val error: String?,
-)
+) {
+    /** Tapping asks the carrier again, unless a download is already under way. */
+    val canRetry get() = state != DownloadState.Waiting && state != DownloadState.Downloading
+}
 
 data class Message(
     val id: Long,
@@ -50,10 +64,17 @@ data class Message(
 /** Reads the messages of one conversation, SMS and MMS merged in time order. */
 object Messages {
 
-    fun load(context: Context, threadId: Long, limit: Int = 400): List<Message> {
+    fun load(context: Context, threadId: Long, limit: Int = 400): List<Message> = loadPage(context, threadId, limit).messages
+
+    class Page(val messages: List<Message>, val hasOlder: Boolean)
+
+    /** The newest [limit] messages, and whether there are older ones to load. */
+    fun loadPage(context: Context, threadId: Long, limit: Int): Page {
         val sms = loadSms(context, threadId, limit)
         val mms = loadMms(context, threadId, limit)
-        return (sms + mms).sortedBy { it.date }.takeLast(limit)
+        val all = (sms + mms).sortedBy { it.date }
+        val hasOlder = all.size > limit || sms.size >= limit || mms.size >= limit
+        return Page(all.takeLast(limit), hasOlder)
     }
 
     /** Unread incoming messages in a thread, oldest first, for notifications. */
@@ -148,17 +169,19 @@ object Messages {
             val pending = if (row.type == PduHeaders.MESSAGE_TYPE_NOTIFICATION_IND) {
                 val expiresAt = row.expiry.takeIf { it > 0 }?.times(1000)
                 val expired = expiresAt != null && expiresAt < System.currentTimeMillis()
+                val queued = MmsDownloadWorker.isQueued(context, row.id)
+                val error = Prefs.mmsError(context, row.id)
                 PendingDownload(
                     state = when {
+                        queued && row.status == MmsStore.ST_DOWNLOADING -> DownloadState.Downloading
+                        queued -> DownloadState.Waiting
                         expired -> DownloadState.Expired
-                        row.status == MmsStore.ST_PERMANENT_FAILURE -> DownloadState.Failed
-                        row.status == MmsStore.ST_DOWNLOADING -> DownloadState.Downloading
-                        row.status == MmsStore.ST_TRANSIENT_FAILURE && !isQueued(context, row.id) -> DownloadState.Failed
-                        else -> DownloadState.Waiting
+                        error != null -> DownloadState.Failed
+                        else -> DownloadState.NotDownloaded
                     },
                     sizeBytes = row.size,
                     expiresAtMillis = expiresAt,
-                    error = Prefs.mmsError(context, row.id),
+                    error = error,
                 )
             } else {
                 null
@@ -184,13 +207,6 @@ object Messages {
             )
         }
     }
-
-    /** True if a download is still scheduled to retry on its own. */
-    private fun isQueued(context: Context, id: Long): Boolean = runCatching {
-        val infos = androidx.work.WorkManager.getInstance(context)
-            .getWorkInfosForUniqueWork("mms-download-$id").get()
-        infos.any { !it.state.isFinished }
-    }.getOrDefault(false)
 
     private class Part(val text: String?, val attachment: Attachment?)
 
@@ -229,7 +245,19 @@ object Messages {
         return result
     }
 
-    private fun sender(context: Context, messageId: Long): String? = runCatching {
+    // Senders never change once a message is stored, so they're cached: big
+    // group threads would otherwise need one lookup per message on every load.
+    private val senderCache = android.util.LruCache<Long, String>(4000)
+    private const val NO_SENDER = "\u0000"
+
+    private fun sender(context: Context, messageId: Long): String? {
+        senderCache.get(messageId)?.let { return it.takeIf { it != NO_SENDER } }
+        val sender = querySender(context, messageId)
+        senderCache.put(messageId, sender ?: NO_SENDER)
+        return sender
+    }
+
+    private fun querySender(context: Context, messageId: Long): String? = runCatching {
         context.contentResolver.query(
             Uri.parse("content://mms/$messageId/addr"),
             arrayOf(Mms.Addr.ADDRESS, Mms.Addr.CHARSET),

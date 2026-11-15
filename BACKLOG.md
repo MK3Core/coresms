@@ -20,7 +20,7 @@ design direction in [docs/DESIGN.md](./docs/DESIGN.md).
   `coresms-keystore-backup/` (see its README.txt). Every release must use
   the same key.
 
-## Known gaps in v0.2.0
+## Known gaps
 
 - **Video compression.** Videos larger than the carrier's MMS limit are
   refused with a message. Media3 Transformer could re-encode them smaller.
@@ -32,11 +32,23 @@ design direction in [docs/DESIGN.md](./docs/DESIGN.md).
 - **Dual SIM:** messages go out on the default SMS SIM; there's no picker.
 - **Bubbles** (floating chat heads) aren't set up, though notifications are
   already tied to conversation shortcuts.
+- **Group previews** in the conversation list show "Group conversation"
+  rather than the latest message (Android stores an MMS's subject as the
+  preview, and group texts have none). Deliberately left this way.
 - **App size.** Code shrinking (R8) is off, so the APK is larger than it
   needs to be. Turn it on once there's a way to test release builds.
 - **Contact cards** (vCard) open in another app rather than inside CoreSMS.
 
 ## Decided since
+
+- **Tuned against a real export (2026-11-15).** 3,718 messages from the
+  owner's phone were analysed locally (counts only): group threading, number
+  formats, text encodings, attachment types and reaction formats all checked
+  out. Fixes from it: recovering MMS another app failed to download,
+  detecting our own number from earlier sent MMS, whitespace-tolerant
+  reaction matching (93% → 98% of reactions find their message), animated
+  GIFs, loading older messages, faster group threads, ❤/❤️ as one reaction,
+  and a grid for multi-photo messages.
 
 - **PDU code:** ported from AOSP Messaging's `mmslib` (Apache 2.0) into
   `app/src/main/java/io/github/mk3core/coresms/mmslib`, without its

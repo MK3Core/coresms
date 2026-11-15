@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -55,6 +57,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +101,7 @@ data class ThreadState(
     val people: List<Contact>,
     val messages: List<Message>,
     val loaded: Boolean,
+    val hasOlder: Boolean,
     val draft: String,
     val attachments: List<android.net.Uri>,
     val sending: Boolean,
@@ -124,6 +129,7 @@ class ThreadActions(
     val onCopy: (Message) -> Unit,
     val onDelete: (Message) -> Unit,
     val onCall: (String) -> Unit,
+    val onLoadOlder: () -> Unit,
 )
 
 private const val GROUP_GAP_MS = 3 * 60 * 1000L
@@ -248,7 +254,18 @@ private fun place(messages: List<Message>): List<Placement> {
 private fun MessageList(state: ThreadState, actions: ThreadActions, modifier: Modifier) {
     val placements = remember(state.messages) { place(state.messages).asReversed() }
     val peopleByAddress = remember(state.people) { state.people }
+    val listState = rememberLazyListState()
+    val nearTop by remember {
+        derivedStateOf {
+            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            last >= listState.layoutInfo.totalItemsCount - 20
+        }
+    }
+    LaunchedEffect(nearTop, state.hasOlder, placements.size) {
+        if (nearTop && state.hasOlder) actions.onLoadOlder()
+    }
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         reverseLayout = true,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -309,7 +326,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                     Modifier.combinedClickable(
                         onClick = {
                             when {
-                                message.pending != null && message.pending.state != DownloadState.Expired -> actions.onRetry(message)
+                                message.pending != null && message.pending.canRetry -> actions.onRetry(message)
                                 message.status == MessageStatus.Failed -> actions.onRetry(message)
                                 else -> showTime = !showTime
                             }
@@ -382,7 +399,13 @@ private fun BubbleContent(message: Message, placement: Placement, actions: Threa
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         message.pending?.let { PendingBubble(message, shape) }
-        message.attachments.forEach { attachment ->
+        val visual = message.attachments.filter { it.isImage || it.isVideo }
+        if (visual.size > 1) {
+            MediaGrid(visual, onOpen = actions.onOpenAttachment)
+        } else {
+            visual.forEach { AttachmentView(it, outgoing, onOpen = { actions.onOpenAttachment(it) }) }
+        }
+        message.attachments.filterNot { it.isImage || it.isVideo }.forEach { attachment ->
             AttachmentView(attachment, outgoing, onOpen = { actions.onOpenAttachment(attachment) })
         }
         val body = message.body
@@ -410,8 +433,9 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape) {
         when (pending.state) {
             DownloadState.Waiting, DownloadState.Downloading ->
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = chat.subtle)
-            DownloadState.Failed -> Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.primary)
-            DownloadState.Expired -> Icon(Icons.Filled.Close, null, tint = chat.subtle)
+            DownloadState.Failed, DownloadState.NotDownloaded ->
+                Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.primary)
+            DownloadState.Expired -> Icon(Icons.Filled.Refresh, null, tint = chat.subtle)
         }
         Spacer(Modifier.width(12.dp))
         Column {
@@ -419,6 +443,7 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape) {
                 when (pending.state) {
                     DownloadState.Waiting, DownloadState.Downloading -> stringResource(R.string.mms_downloading)
                     DownloadState.Failed -> stringResource(R.string.mms_failed_tap)
+                    DownloadState.NotDownloaded -> stringResource(R.string.mms_not_downloaded)
                     DownloadState.Expired -> stringResource(R.string.mms_expired)
                 },
                 style = MaterialTheme.typography.bodyMedium,
@@ -429,7 +454,7 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape) {
                 ?.takeIf { pending.state != DownloadState.Expired }
                 ?.let { stringResource(R.string.mms_expires, Times.short(context, it)) }
             val details = buildList {
-                if (pending.state == DownloadState.Failed || pending.state == DownloadState.Waiting) pending.error?.let(::add)
+                if (pending.state != DownloadState.Downloading) pending.error?.let(::add)
                 if (pending.sizeBytes > 0) add(Formatter.formatShortFileSize(context, pending.sizeBytes))
                 expires?.let(::add)
             }
@@ -506,9 +531,48 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, onOpen: ()
     }
 }
 
+/** Two or more photos/videos in one message, as a tidy grid of square tiles. */
+@Composable
+private fun MediaGrid(items: List<Attachment>, onOpen: (Attachment) -> Unit) {
+    val chat = LocalChatColors.current
+    Column(
+        Modifier.width(250.dp).clip(RoundedCornerShape(18.dp)),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        items.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                row.forEach { attachment ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .background(chat.incomingBubble)
+                            .clickable { onOpen(attachment) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AsyncImage(
+                            model = attachment.uri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        if (attachment.isVideo) {
+                            Icon(Icons.Filled.PlayArrow, stringResource(R.string.preview_video), tint = Color.White, modifier = Modifier.size(32.dp))
+                        }
+                    }
+                }
+                // Keep a lone last tile half-width.
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
 @Composable
 private fun ReactionChips(reactions: List<Reaction>, modifier: Modifier) {
-    val counts = reactions.groupingBy { it.emoji }.eachCount()
+    // Group by the emoji without its variation selector, show the first form seen.
+    val counts = reactions.groupBy { Reactions.canonical(it.emoji) }
+        .map { (_, same) -> same.first().emoji to same.size }
     Row(
         modifier
             .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(14.dp))
@@ -531,7 +595,7 @@ private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, 
         if (message.pending == null && message.status != MessageStatus.Failed) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                 (Reactions.QUICK + listOf("🔥", "🙏")).forEach { emoji ->
-                    val mine = message.reactions.any { it.fromMe && it.emoji == emoji }
+                    val mine = message.reactions.any { it.fromMe && Reactions.canonical(it.emoji) == Reactions.canonical(emoji) }
                     Box(
                         Modifier
                             .size(40.dp)
@@ -552,7 +616,7 @@ private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, 
                 text = { Text(stringResource(R.string.save)) },
                 onClick = {
                     onDismiss()
-                    val saved = io.github.mk3core.coresms.AttachmentFiles.saveToDevice(context, attachment)
+                    val saved = message.attachments.map { io.github.mk3core.coresms.AttachmentFiles.saveToDevice(context, it) }.all { it }
                     android.widget.Toast.makeText(
                         context,
                         if (saved) R.string.saved else R.string.save_failed,
@@ -565,7 +629,7 @@ private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, 
                 onClick = { onDismiss(); io.github.mk3core.coresms.AttachmentFiles.share(context, attachment) },
             )
         }
-        if (message.status == MessageStatus.Failed || (message.pending != null && message.pending.state != DownloadState.Expired)) {
+        if (message.status == MessageStatus.Failed || message.pending?.canRetry == true) {
             DropdownMenuItem(text = { Text(stringResource(R.string.retry)) }, onClick = { onDismiss(); actions.onRetry(message) })
         }
         DropdownMenuItem(

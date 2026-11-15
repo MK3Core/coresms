@@ -27,7 +27,6 @@ import io.github.mk3core.coresms.data.Message
 import io.github.mk3core.coresms.data.MessageChanges
 import io.github.mk3core.coresms.data.MessageStatus
 import io.github.mk3core.coresms.data.Messages
-import io.github.mk3core.coresms.data.Prefs
 import io.github.mk3core.coresms.mms.MediaTooLargeException
 import io.github.mk3core.coresms.mms.MmsDownloadWorker
 import io.github.mk3core.coresms.notify.Notifications
@@ -49,6 +48,9 @@ class ThreadActivity : ComponentActivity() {
     private var people by mutableStateOf(emptyList<Contact>())
     private var messages by mutableStateOf(emptyList<Message>())
     private var loaded by mutableStateOf(false)
+    private var hasOlder by mutableStateOf(false)
+    private var limit = PAGE_SIZE
+    private var loadingOlder = false
     private var draft by mutableStateOf("")
     private var attachments by mutableStateOf(emptyList<Uri>())
     private var sending by mutableStateOf(false)
@@ -82,6 +84,7 @@ class ThreadActivity : ComponentActivity() {
                         people = people,
                         messages = messages,
                         loaded = loaded,
+                        hasOlder = hasOlder,
                         draft = draft,
                         attachments = attachments,
                         sending = sending,
@@ -104,6 +107,7 @@ class ThreadActivity : ComponentActivity() {
                             lifecycleScope.launch(Dispatchers.IO) { Messages.delete(applicationContext, message) }
                         },
                         onCall = { address -> startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", address, null))) },
+                        onLoadOlder = ::loadOlder,
                     ),
                 )
             }
@@ -129,11 +133,14 @@ class ThreadActivity : ComponentActivity() {
 
     private suspend fun reload() {
         val context = applicationContext
-        val (loadedPeople, loadedMessages) = withContext(Dispatchers.IO) {
-            Conversations.recipients(context, threadId) to ReactionFolding.fold(Messages.load(context, threadId))
+        val pageSize = limit
+        val (loadedPeople, page) = withContext(Dispatchers.IO) {
+            Conversations.recipients(context, threadId) to Messages.loadPage(context, threadId, pageSize)
         }
+        val loadedMessages = withContext(Dispatchers.Default) { ReactionFolding.fold(page.messages) }
         people = loadedPeople
         messages = loadedMessages
+        hasOlder = page.hasOlder
         loaded = true
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && loadedMessages.any { it.incoming }) {
             withContext(Dispatchers.IO) { Conversations.markRead(context, threadId) }
@@ -141,6 +148,20 @@ class ThreadActivity : ComponentActivity() {
     }
 
     private fun recipients() = people.map { it.address }
+
+    /** Scrolled near the oldest loaded message: load another page of history. */
+    private fun loadOlder() {
+        if (loadingOlder || !hasOlder) return
+        loadingOlder = true
+        limit += PAGE_SIZE
+        lifecycleScope.launch {
+            try {
+                reload()
+            } finally {
+                loadingOlder = false
+            }
+        }
+    }
 
     private fun send() {
         val text = draft.trim()
@@ -177,8 +198,8 @@ class ThreadActivity : ComponentActivity() {
 
     private fun retry(message: Message) {
         if (message.pending != null) {
-            Prefs.setMmsError(this, message.id, null)
-            MmsDownloadWorker.enqueue(applicationContext, message.id)
+            MmsDownloadWorker.enqueue(applicationContext, message.id, MmsDownloadWorker.Mode.MANUAL)
+            MessageChanges.notifyLocalChange()
             return
         }
         if (message.status != MessageStatus.Failed) return
@@ -190,7 +211,7 @@ class ThreadActivity : ComponentActivity() {
     }
 
     private fun react(message: Message, emoji: String) {
-        val alreadyMine = message.reactions.any { it.fromMe && it.emoji == emoji }
+        val alreadyMine = message.reactions.any { it.fromMe && Reactions.canonical(it.emoji) == Reactions.canonical(emoji) }
         val text = Reactions.compose(emoji, message.body, message.attachments.isNotEmpty(), removed = alreadyMine)
         val to = recipients()
         lifecycleScope.launch(Dispatchers.IO) {
@@ -221,6 +242,7 @@ class ThreadActivity : ComponentActivity() {
         private const val EXTRA_DRAFT = "draft"
         private const val EXTRA_ATTACHMENTS = "attachments"
         private const val STATE_DRAFT = "draft"
+        private const val PAGE_SIZE = 300
 
         fun intent(context: Context, threadId: Long, draft: String? = null, attachments: List<Uri> = emptyList()): Intent =
             Intent(context, ThreadActivity::class.java)

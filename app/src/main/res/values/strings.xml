@@ -62,7 +62,8 @@
     <!-- MMS download -->
     <string name="mms_downloading">Downloading picture message…</string>
     <string name="mms_failed_tap">Couldn\'t download · tap to retry</string>
-    <string name="mms_expired">Expired before it could be downloaded</string>
+    <string name="mms_expired">Expired at the carrier · tap to try anyway</string>
+    <string name="mms_not_downloaded">Not downloaded yet · tap to download</string>
     <string name="mms_expires">expires %1$s</string>
     <string name="mms_error_settings">Your carrier\'s MMS settings (APN) look wrong</string>
     <string name="mms_error_connect">Couldn\'t reach your carrier\'s MMS server</string>
@@ -80,6 +81,7 @@
     <string name="mms_error_start">Couldn\'t start the download: %1$s</string>
     <string name="mms_error_unreadable">The downloaded message couldn\'t be read</string>
     <string name="mms_error_save">The message couldn\'t be saved</string>
+    <string name="mms_error_no_location">The carrier\'s link to this message is missing, so it can\'t be requested again</string>
     <string name="mms_error_carrier_status">The carrier couldn\'t provide the message (status %1$d)</string>
 
     <!-- Previews -->
@@ -90,6 +92,8 @@
     <string name="preview_attachment">📎 Attachment</string>
     <string name="preview_mms_waiting">Picture message waiting to download</string>
     <string name="unknown_sender">Unknown</string>
+    <string name="preview_group">Group conversation</string>
+    <string name="preview_message">Message</string>
 
     <!-- New message -->
     <string name="new_message">New message</string>
@@ -105,6 +109,7 @@
     <string name="settings_number_unknown">Your SIM doesn\'t report its number. Enter it so group messages stay in one conversation.</string>
     <string name="settings_number_from_sim">Your SIM reports %1$s. You only need to enter a number if that\'s wrong.</string>
     <string name="settings_number_label">Phone number</string>
+    <string name="settings_number_detected">Your SIM doesn\'t report its number, but your earlier messages show %1$s, so CoreSMS uses that. Enter a number only if that\'s wrong.</string>
     <string name="change_default">Default SMS app</string>
     <string name="settings_default_body">Switch to another messaging app. Your messages stay on the phone.</string>
     <string name="settings_notifications">Notifications</string>

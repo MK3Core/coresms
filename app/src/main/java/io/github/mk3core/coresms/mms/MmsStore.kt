@@ -94,6 +94,7 @@ object MmsStore {
         subId: Int,
         transactionId: String?,
         contentLocation: String?,
+        announcedAtSeconds: Long,
     ): Long? {
         val from = conf.from?.string?.takeIf { it.isNotBlank() } ?: UNKNOWN_SENDER
         val to = conf.to.orEmpty().mapNotNull { it?.string }
@@ -108,8 +109,9 @@ object MmsStore {
             put(Mms.THREAD_ID, threadId)
             put(Mms.MESSAGE_BOX, Mms.MESSAGE_BOX_INBOX)
             put(Mms.MESSAGE_TYPE, PduHeaders.MESSAGE_TYPE_RETRIEVE_CONF)
-            // Received time, so messages sort in the order they arrived here.
-            put(Mms.DATE, System.currentTimeMillis() / 1000)
+            // When the carrier announced it, so a message recovered days later
+            // still sits where it belongs in the conversation.
+            put(Mms.DATE, announcedAtSeconds.takeIf { it > 0 } ?: (System.currentTimeMillis() / 1000))
             put(Mms.DATE_SENT, date)
             put(Mms.READ, 0)
             put(Mms.SEEN, 0)

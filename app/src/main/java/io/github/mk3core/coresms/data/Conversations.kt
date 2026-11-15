@@ -6,9 +6,10 @@ import android.net.Uri
 import android.provider.Telephony
 import android.provider.Telephony.Mms
 import android.provider.Telephony.Sms
+import io.github.mk3core.coresms.R
+import io.github.mk3core.coresms.mms.MmsRecovery
 import io.github.mk3core.coresms.mms.MmsStore
 import io.github.mk3core.coresms.mmslib.pdu.EncodedStringValue
-import io.github.mk3core.coresms.mmslib.pdu.PduHeaders
 import io.github.mk3core.coresms.reactions.Reactions
 
 data class Conversation(
@@ -71,7 +72,7 @@ object Conversations {
                         threadId = threadId,
                         people = people,
                         date = cursor.getLong(1),
-                        snippet = snippet(cursor.getString(4), cursor.getInt(5), cursor.getInt(6) != 0),
+                        snippet = snippet(context, cursor.getString(4), cursor.getInt(5), cursor.getInt(6) != 0, people.size > 1),
                         unreadCount = unread[threadId] ?: 0,
                         hasPendingMms = threadId in pendingMms,
                         pinned = threadId in pinned,
@@ -155,27 +156,31 @@ object Conversations {
         return counts
     }
 
-    private fun threadsWithPendingMms(context: Context): Set<Long> {
-        val threads = HashSet<Long>()
-        runCatching {
-            context.contentResolver.query(
-                Mms.CONTENT_URI,
-                arrayOf(Mms.THREAD_ID),
-                "${Mms.MESSAGE_TYPE} = ${PduHeaders.MESSAGE_TYPE_NOTIFICATION_IND}",
-                null,
-                null,
-            )?.use { cursor -> while (cursor.moveToNext()) threads += cursor.getLong(0) }
-        }
-        return threads
-    }
+    /** Threads with an MMS that hasn't downloaded but still could (not expired or gone). */
+    private fun threadsWithPendingMms(context: Context): Set<Long> =
+        MmsRecovery.undownloaded(context)
+            .filter { MmsRecovery.needsAttention(context, it) }
+            .map { it.threadId }
+            .toSet()
 
-    private fun snippet(raw: String?, charset: Int, hasAttachment: Boolean): String {
+    /**
+     * Android stores an MMS's subject as the conversation preview, which is
+     * empty for most group texts; those get a plain label instead.
+     */
+    private fun snippet(context: Context, raw: String?, charset: Int, hasAttachment: Boolean, isGroup: Boolean): String {
         val text = if (raw != null && charset != 0) {
             runCatching { EncodedStringValue(charset, raw.toByteArray(Charsets.ISO_8859_1)).string }.getOrDefault(raw)
         } else {
             raw.orEmpty()
         }
         Reactions.parse(text)?.let { return Reactions.describe(it) }
-        return text.ifBlank { if (hasAttachment) "Attachment" else "" }
+        if (text.isNotBlank()) return text
+        return context.getString(
+            when {
+                isGroup -> R.string.preview_group
+                hasAttachment -> R.string.preview_attachment
+                else -> R.string.preview_message
+            },
+        )
     }
 }

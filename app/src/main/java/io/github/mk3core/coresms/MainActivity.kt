@@ -22,6 +22,7 @@ import io.github.mk3core.coresms.data.MessageChanges
 import io.github.mk3core.coresms.data.Prefs
 import io.github.mk3core.coresms.data.SelfNumbers
 import io.github.mk3core.coresms.mms.IncomingMms
+import io.github.mk3core.coresms.mms.MmsRecovery
 import io.github.mk3core.coresms.notify.Notifications
 import io.github.mk3core.coresms.ui.ConversationListScreen
 import io.github.mk3core.coresms.ui.ListActions
@@ -70,8 +71,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         refreshSetup()
 
-        // MMS notices saved by v0.1.0 (before MMS download existed).
-        lifecycleScope.launch(Dispatchers.IO) { IncomingMms.importSavedNotices(applicationContext) }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val app = applicationContext
+            // MMS notices saved by v0.1.0 (before MMS download existed).
+            IncomingMms.importSavedNotices(app)
+            // Our number from earlier apps' sent MMS, for SIMs that don't report it.
+            SelfNumbers.detectFromHistory(app)
+            // Ask the carrier again for any MMS that never downloaded.
+            MmsRecovery.heal(app)
+        }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

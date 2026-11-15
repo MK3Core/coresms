@@ -30,7 +30,7 @@ object ReactionFolding {
             val reaction = Reaction(parsed.emoji, message.sender, fromMe = !message.incoming)
             val list = reactions.getOrPut(target.key) { mutableListOf() }
             // One reaction per person per message, like iMessage.
-            list.removeAll { sameReactor(it, reaction) && (!parsed.removed || it.emoji == parsed.emoji) }
+            list.removeAll { sameReactor(it, reaction) && (!parsed.removed || Reactions.canonical(it.emoji) == Reactions.canonical(parsed.emoji)) }
             if (!parsed.removed) list += reaction
         }
         return visible.map { message ->

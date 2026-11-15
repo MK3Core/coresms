@@ -37,8 +37,18 @@ object Prefs {
         prefs(context).edit { putString(KEY_MY_NUMBER, number?.trim()) }
     }
 
-    // Why an MMS last failed to download, shown on its bubble.
+    // Our number as found in messages sent by an earlier app (see SelfNumbers).
 
+    fun detectedNumber(context: Context): String? =
+        prefs(context).getString(KEY_DETECTED_NUMBER, null)?.takeIf { it.isNotBlank() }
+
+    fun setDetectedNumber(context: Context, number: String?) {
+        prefs(context).edit { putString(KEY_DETECTED_NUMBER, number) }
+    }
+
+    // Download state for MMS that haven't downloaded yet.
+
+    /** Why an MMS last failed to download, shown on its bubble. */
     fun mmsError(context: Context, messageId: Long): String? =
         prefs(context).getString(KEY_MMS_ERROR_PREFIX + messageId, null)
 
@@ -48,4 +58,32 @@ object Prefs {
             else putString(KEY_MMS_ERROR_PREFIX + messageId, error)
         }
     }
+
+    fun mmsLastAttempt(context: Context, messageId: Long): Long =
+        prefs(context).getLong(KEY_MMS_ATTEMPT_PREFIX + messageId, 0)
+
+    fun setMmsLastAttempt(context: Context, messageId: Long, millis: Long) {
+        prefs(context).edit { putLong(KEY_MMS_ATTEMPT_PREFIX + messageId, millis) }
+    }
+
+    /** The carrier said it no longer has this message; don't retry it automatically. */
+    fun isMmsGone(context: Context, messageId: Long): Boolean =
+        prefs(context).getBoolean(KEY_MMS_GONE_PREFIX + messageId, false)
+
+    fun setMmsGone(context: Context, messageId: Long) {
+        prefs(context).edit { putBoolean(KEY_MMS_GONE_PREFIX + messageId, true) }
+    }
+
+    /** Forgets everything about an MMS's download (on success, or before a manual retry). */
+    fun clearMmsState(context: Context, messageId: Long) {
+        prefs(context).edit {
+            remove(KEY_MMS_ERROR_PREFIX + messageId)
+            remove(KEY_MMS_ATTEMPT_PREFIX + messageId)
+            remove(KEY_MMS_GONE_PREFIX + messageId)
+        }
+    }
+
+    private const val KEY_DETECTED_NUMBER = "detected_number"
+    private const val KEY_MMS_ATTEMPT_PREFIX = "mms_attempt_"
+    private const val KEY_MMS_GONE_PREFIX = "mms_gone_"
 }
