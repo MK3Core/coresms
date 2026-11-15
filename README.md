@@ -24,7 +24,8 @@ build order.
 - **Emoji reactions** that work both ways with iPhones and Android phones.
 - **System notifications** with reply, mark as read and Android's
   conversation features.
-- **A clean, minimal design** with pinned conversations. See
+- **A clean, minimal design** where the home screen shows only pinned and
+  unread conversations, with everything already read "below the screen". See
   [docs/DESIGN.md](./docs/DESIGN.md).
 - Later: **scheduled messages** and **reminders to reply**.
 
