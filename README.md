@@ -42,8 +42,8 @@ real-world testing yet, so expect rough edges.
   1 MB); compressing longer videos isn't built yet.
 - **Reactions** that work with iPhones: tap a message to react, and
   reactions from iPhones and Google Messages show on the message they're for
-  instead of as separate texts. Tap the reactions on a
-  message to see who sent each one.
+  instead of as separate texts, listed under the message with who sent
+  each one.
 - **Notifications** per conversation with Reply and Mark as read, shown in
   Android's Conversations section.
 - Share photos from the gallery straight into a conversation, and "Send

@@ -74,8 +74,9 @@ idea is still open.
 - A conversation you're actively texting in stays above the fold for 20
   minutes after its last message.
 - Every message shows its time: under the bubble, or after the sender's
-  name above it in a group. Tapping a message opens the reaction menu;
-  tapping the reactions on it shows a quiet line of who reacted with what.
+  name above it in a group. Tapping a message opens the reaction menu.
+  Reactions are a quiet line under the message listing each emoji and who
+  sent it, always visible; there's no badge on the bubble's corner.
 - Two themes, chosen in Settings:
   - **Retro** (the default): monospace text, white on true black, with
     color only where it means something (red for failures). Your messages

@@ -345,7 +345,6 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
     val chat = LocalChatColors.current
     val outgoing = !message.incoming
     var menuOpen by remember { mutableStateOf(false) }
-    var showWho by remember { mutableStateOf(false) }
     val sender = message.sender?.let { address -> people.firstOrNull { Phone.same(it.address, address) } ?: Contact(address, null, null) }
     val time = Times.time(context, message.date)
     // In a group, someone else's messages carry their name and time above the bubble.
@@ -369,9 +368,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                 if (placement.lastInGroup && sender != null) Avatar(sender, 30.dp) else Spacer(Modifier.width(30.dp))
                 Spacer(Modifier.width(8.dp))
             }
-            Box(
-                Modifier.padding(top = if (message.reactions.isNotEmpty()) 14.dp else 0.dp),
-            ) {
+            Box {
                 Box(
                     Modifier.combinedClickable(
                         onClick = {
@@ -386,24 +383,11 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                 ) {
                     BubbleContent(message, placement, actions)
                 }
-                if (message.reactions.isNotEmpty()) {
-                    ReactionChips(
-                        message.reactions,
-                        Modifier
-                            .align(if (outgoing) Alignment.TopStart else Alignment.TopEnd)
-                            .offset(x = if (outgoing) (-8).dp else 8.dp, y = (-14).dp)
-                            .clickable { showWho = !showWho },
-                    )
-                }
                 MessageMenu(message, menuOpen, onDismiss = { menuOpen = false }, actions)
             }
         }
-        if (showWho && message.reactions.isNotEmpty()) {
-            ReactionLine(
-                message,
-                people,
-                Modifier.padding(start = indent + 6.dp, end = 6.dp, top = 3.dp).clickable { showWho = false },
-            )
+        if (message.reactions.isNotEmpty()) {
+            ReactionLine(message, people, Modifier.padding(start = indent + 6.dp, end = 6.dp, top = 3.dp))
         }
         val below = when {
             message.status == MessageStatus.Failed ->
@@ -655,7 +639,7 @@ private fun MediaGrid(items: List<Attachment>, onOpen: (Attachment) -> Unit) {
     }
 }
 
-/** Who reacted with what, a quiet line under the message shown by tapping its reactions. */
+/** Who reacted with what: a quiet line always shown under the message. */
 @Composable
 private fun ReactionLine(message: Message, people: List<Contact>, modifier: Modifier) {
     val you = stringResource(R.string.reactions_you)
@@ -677,27 +661,6 @@ private fun ReactionLine(message: Message, people: List<Contact>, modifier: Modi
         color = LocalChatColors.current.subtle,
         modifier = modifier,
     )
-}
-
-@Composable
-private fun ReactionChips(reactions: List<Reaction>, modifier: Modifier) {
-    val chipShape = RoundedCornerShape(if (LocalChatStyle.current.retro) 4.dp else 14.dp)
-    // Group by the emoji without its variation selector, show the first form seen.
-    val counts = reactions.groupBy { Reactions.canonical(it.emoji) }
-        .map { (_, same) -> same.first().emoji to same.size }
-    Row(
-        modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, chipShape)
-            .border(2.dp, MaterialTheme.colorScheme.background, chipShape)
-            .padding(horizontal = 7.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        counts.forEach { (emoji, count) ->
-            Text(emoji, fontSize = 15.sp)
-            if (count > 1) Text(count.toString(), style = MaterialTheme.typography.labelSmall)
-        }
-    }
 }
 
 @Composable
