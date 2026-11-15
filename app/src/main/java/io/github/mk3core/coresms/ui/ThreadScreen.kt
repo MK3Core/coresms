@@ -346,6 +346,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
     val outgoing = !message.incoming
     var menuOpen by remember { mutableStateOf(false) }
     var showTime by remember { mutableStateOf(false) }
+    var showReactions by remember { mutableStateOf(false) }
     val sender = message.sender?.let { address -> people.firstOrNull { Phone.same(it.address, address) } ?: Contact(address, null, null) }
 
     Column(
@@ -374,6 +375,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                             when {
                                 message.pending != null && message.pending.canRetry -> actions.onRetry(message)
                                 message.status == MessageStatus.Failed -> actions.onRetry(message)
+                                message.reactions.isNotEmpty() -> showReactions = true
                                 else -> showTime = !showTime
                             }
                         },
@@ -387,8 +389,12 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                         message.reactions,
                         Modifier
                             .align(if (outgoing) Alignment.TopStart else Alignment.TopEnd)
-                            .offset(x = if (outgoing) (-8).dp else 8.dp, y = (-14).dp),
+                            .offset(x = if (outgoing) (-8).dp else 8.dp, y = (-14).dp)
+                            .clickable { showReactions = true },
                     )
+                }
+                if (showReactions) {
+                    ReactionsDialog(message, people, onDismiss = { showReactions = false })
                 }
                 MessageMenu(message, menuOpen, onDismiss = { menuOpen = false }, actions)
             }
@@ -446,7 +452,6 @@ private fun BubbleContent(message: Message, placement: Placement, actions: Threa
     val outline = when {
         !style.retro -> chat.bubbleOutline
         message.status == MessageStatus.Failed -> chat.failed.copy(alpha = 0.5f)
-        outgoing -> chat.onOutgoingBubble.copy(alpha = 0.35f)
         else -> chat.bubbleOutline
     }
 
@@ -641,6 +646,54 @@ private fun MediaGrid(items: List<Attachment>, onOpen: (Attachment) -> Unit) {
             }
         }
     }
+}
+
+/** Who reacted with what, opened by tapping a message that has reactions. */
+@Composable
+private fun ReactionsDialog(message: Message, people: List<Contact>, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val you = stringResource(R.string.reactions_you)
+    // In a one-to-one conversation an incoming reaction may not name its sender.
+    val only = people.singleOrNull()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.reactions_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                message.reactions.forEach { reaction ->
+                    val person = when {
+                        reaction.fromMe -> null
+                        reaction.sender != null ->
+                            people.firstOrNull { Phone.same(it.address, reaction.sender) } ?: Contact(reaction.sender, null, null)
+                        else -> only
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (person != null) Avatar(person, 32.dp) else Spacer(Modifier.width(32.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            when {
+                                reaction.fromMe -> you
+                                person != null -> person.name ?: person.address
+                                else -> stringResource(R.string.reactions_someone)
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(reaction.emoji, fontSize = 22.sp)
+                    }
+                }
+                Text(
+                    Times.short(context, message.date),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalChatColors.current.subtle,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    )
 }
 
 @Composable

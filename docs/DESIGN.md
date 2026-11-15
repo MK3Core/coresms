@@ -76,11 +76,11 @@ space rather than a place. The first screen is still just what needs you.
   minutes after its last message.
 - The Earlier drawer's header is 72dp tall above the navigation bar.
 - Two themes, chosen in Settings:
-  - **Retro** (the default): a terminal look. Monospace text everywhere,
-    near-black background, phosphor green for text and actions, amber for
-    your messages and anything unread, thin outlines instead of filled
-    bubbles, square corners, and a `> messages` title with a blinking
-    cursor. Always dark.
+  - **Retro** (the default): monospace text, white on true black, with
+    color only where it means something (contact avatars, red for
+    failures). Your messages sit on dark gray, theirs in a thin outline.
+    Always dark. A first version with phosphor green, amber, a blinking
+    cursor and boxed avatars was too much; plain is the point.
   - **Modern**: a fixed CoreSMS blue for your bubbles, light gray for
     theirs, white background in light mode and true black in dark mode.
   Wallpaper colors (Material You) aren't used.

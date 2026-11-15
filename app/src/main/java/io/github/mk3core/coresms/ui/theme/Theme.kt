@@ -96,12 +96,12 @@ private val ModernStyle = ChatStyle(
 
 private val RetroStyle = ChatStyle(
     retro = true,
-    bubbleRadius = 3.dp,
-    bubbleTightRadius = 1.dp,
-    mediaRadius = 2.dp,
-    fieldShape = RoundedCornerShape(2.dp),
-    roundShape = RoundedCornerShape(3.dp),
-    sheetRadius = 2.dp,
+    bubbleRadius = 6.dp,
+    bubbleTightRadius = 2.dp,
+    mediaRadius = 6.dp,
+    fieldShape = RoundedCornerShape(6.dp),
+    roundShape = CircleShape,
+    sheetRadius = 6.dp,
 )
 
 val LocalChatStyle = staticCompositionLocalOf { RetroStyle }
@@ -129,22 +129,20 @@ private val DarkChat = ChatColors(
     subtle = Color(0xFF7D838C),
 )
 
-// Retro: a phosphor-green terminal with amber for what's yours and what needs you.
-private val Phosphor = Color(0xFF3DFF7A)
-private val PhosphorText = Color(0xFFB4F5C0)
-private val PhosphorDim = Color(0xFF5A9466)
-private val Amber = Color(0xFFFFB443)
-private val TerminalRed = Color(0xFFFF6157)
+// Retro: plain white-on-black terminal text. Color only where it means something.
+private val Ink = Color(0xFFEDEDED)
+private val InkDim = Color(0xFF8C8C8C)
+private val TerminalRed = Color(0xFFFF5F57)
 
 private val RetroChat = ChatColors(
-    outgoingBubble = Color(0xFF1D1607),
-    onOutgoingBubble = Amber,
-    incomingBubble = Color(0xFF0C180F),
-    onIncomingBubble = PhosphorText,
+    outgoingBubble = Color(0xFF262626),
+    onOutgoingBubble = Color.White,
+    incomingBubble = Color.Black,
+    onIncomingBubble = Ink,
     failed = TerminalRed,
-    unreadDot = Amber,
-    subtle = PhosphorDim,
-    bubbleOutline = Color(0xFF24442B),
+    unreadDot = Color.White,
+    subtle = InkDim,
+    bubbleOutline = Color(0xFF3A3A3A),
 )
 
 val LocalChatColors = staticCompositionLocalOf { RetroChat }
@@ -182,22 +180,22 @@ private val DarkScheme = darkColorScheme(
 )
 
 private val RetroScheme = darkColorScheme(
-    primary = Phosphor,
-    onPrimary = Color(0xFF021006),
-    secondary = Amber,
-    onSecondary = Color(0xFF1A1000),
-    background = Color(0xFF040805),
-    onBackground = PhosphorText,
-    surface = Color(0xFF040805),
-    onSurface = PhosphorText,
-    surfaceVariant = Color(0xFF0C160E),
-    onSurfaceVariant = Color(0xFF86C493),
-    surfaceContainer = Color(0xFF0A130C),
-    surfaceContainerLow = Color(0xFF07100A),
-    surfaceContainerHigh = Color(0xFF0F1D12),
-    surfaceContainerHighest = Color(0xFF132416),
-    outline = PhosphorDim,
-    outlineVariant = Color(0xFF1E3A24),
+    primary = Color.White,
+    onPrimary = Color.Black,
+    secondary = Ink,
+    onSecondary = Color.Black,
+    background = Color.Black,
+    onBackground = Ink,
+    surface = Color.Black,
+    onSurface = Ink,
+    surfaceVariant = Color(0xFF161616),
+    onSurfaceVariant = Color(0xFFB5B5B5),
+    surfaceContainer = Color(0xFF121212),
+    surfaceContainerLow = Color(0xFF0D0D0D),
+    surfaceContainerHigh = Color(0xFF1A1A1A),
+    surfaceContainerHighest = Color(0xFF222222),
+    outline = InkDim,
+    outlineVariant = Color(0xFF2E2E2E),
     error = TerminalRed,
 )
 
@@ -226,10 +224,10 @@ private val RetroTypography = Typography().let { base ->
         displayMedium = base.displayMedium.mono(),
         displaySmall = base.displaySmall.mono(),
         headlineLarge = base.headlineLarge.mono(),
-        headlineMedium = base.headlineMedium.mono(size = 24, weight = FontWeight.Bold),
+        headlineMedium = base.headlineMedium.mono(size = 24, weight = FontWeight.SemiBold),
         headlineSmall = base.headlineSmall.mono(),
-        titleLarge = base.titleLarge.mono(size = 19, weight = FontWeight.Bold),
-        titleMedium = base.titleMedium.mono(size = 15, weight = FontWeight.Bold),
+        titleLarge = base.titleLarge.mono(size = 19, weight = FontWeight.SemiBold),
+        titleMedium = base.titleMedium.mono(size = 15, weight = FontWeight.SemiBold),
         titleSmall = base.titleSmall.mono(),
         bodyLarge = base.bodyLarge.mono(size = 15, line = 21),
         bodyMedium = base.bodyMedium.mono(size = 14, line = 19),

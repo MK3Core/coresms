@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.mk3core.coresms.data.Contact
-import io.github.mk3core.coresms.ui.theme.LocalChatStyle
 import kotlin.math.abs
 
 private val AvatarColors = listOf(
@@ -31,27 +30,13 @@ private val AvatarColors = listOf(
     Color(0xFFE0A63E), Color(0xFF5FB2D8), Color(0xFFDE6E95), Color(0xFF7C8FA6),
 )
 
-// Retro: terminal colors, drawn as colored initials in a dim box.
-private val RetroAvatarColors = listOf(
-    Color(0xFF3DFF7A), Color(0xFFFFB443), Color(0xFF4FE3F0), Color(0xFFFF7AD9),
-    Color(0xFFB8F05A), Color(0xFF9C8CFF), Color(0xFFFF8A5C), Color(0xFFE8E8E8),
-)
-
 /** A contact's photo, their initials on a soft color, or a person glyph for unsaved numbers. */
 @Composable
 fun Avatar(contact: Contact, size: Dp, modifier: Modifier = Modifier) {
-    val style = LocalChatStyle.current
-    val palette = if (style.retro) RetroAvatarColors else AvatarColors
-    val color = palette[abs(contact.address.hashCode()) % palette.size]
-    val shape = style.roundShape
-    val box = if (style.retro) {
-        modifier.size(size).clip(shape).background(color.copy(alpha = 0.14f)).border(1.dp, color.copy(alpha = 0.55f), shape)
-    } else {
-        modifier.size(size).clip(shape).background(color)
-    }
-    val ink = if (style.retro) color else Color.White
+    val color = AvatarColors[abs(contact.address.hashCode()) % AvatarColors.size]
+    val ink = Color.White
     Box(
-        modifier = box,
+        modifier = modifier.size(size).clip(CircleShape).background(color),
         contentAlignment = Alignment.Center,
     ) {
         val initials = contact.name?.let(::initials)
@@ -59,9 +44,8 @@ fun Avatar(contact: Contact, size: Dp, modifier: Modifier = Modifier) {
             Text(
                 initials,
                 color = ink,
-                fontWeight = if (style.retro) FontWeight.Bold else FontWeight.SemiBold,
-                fontSize = (size.value * if (style.retro) 0.34f else 0.38f).sp,
-                fontFamily = if (style.retro) androidx.compose.ui.text.font.FontFamily.Monospace else null,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = (size.value * 0.38f).sp,
             )
         } else {
             Icon(
@@ -98,7 +82,7 @@ fun ConversationAvatar(people: List<Contact>, size: Dp, modifier: Modifier = Mod
             Modifier
                 .align(Alignment.BottomStart)
                 .offset(x = (-1).dp, y = 1.dp)
-                .border(2.dp, MaterialTheme.colorScheme.background, LocalChatStyle.current.roundShape),
+                .border(2.dp, MaterialTheme.colorScheme.background, CircleShape),
         )
     }
 }

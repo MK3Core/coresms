@@ -2,11 +2,6 @@ package io.github.mk3core.coresms.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,7 +13,6 @@ import androidx.compose.material3.BottomSheetScaffoldState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.Dp
 import io.github.mk3core.coresms.ui.theme.LocalChatStyle
 import kotlinx.coroutines.launch
@@ -285,39 +279,30 @@ private fun EarlierDrawer(
     Column(
         Modifier
             .fillMaxWidth()
-            .then(if (style.retro) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant) else Modifier),
+            .then(if (style.retro) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(topStart = style.sheetRadius, topEnd = style.sheetRadius)) else Modifier),
     ) {
         Column(
             Modifier.fillMaxWidth().height(DRAWER_HEADER).clickable(onClick = onToggle),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (style.retro) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    if (open) "▼" else "▲",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = chat.subtle,
-                )
-            } else {
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier
-                        .size(width = 36.dp, height = 4.dp)
-                        .background(chat.subtle.copy(alpha = 0.4f), RoundedCornerShape(2.dp)),
-                )
-            }
+            Spacer(Modifier.height(10.dp))
+            Box(
+                Modifier
+                    .size(width = 36.dp, height = 4.dp)
+                    .background(chat.subtle.copy(alpha = 0.4f), RoundedCornerShape(2.dp)),
+            )
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (style.retro) "> " + stringResource(R.string.list_earlier).lowercase() else stringResource(R.string.list_earlier),
+                    stringResource(R.string.list_earlier),
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (style.retro) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    if (style.retro) "[${earlier.size}]" else earlier.size.toString(),
+                    earlier.size.toString(),
                     style = MaterialTheme.typography.labelLarge,
                     color = chat.subtle,
                 )
@@ -334,31 +319,26 @@ private fun EarlierDrawer(
 
 @Composable
 private fun CaughtUp(hasEarlier: Boolean) {
-    val retro = LocalChatStyle.current.retro
     Column(
         Modifier.fillMaxWidth().padding(top = 120.dp, start = 32.dp, end = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (retro) {
-            Text("[ ok ]", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        } else {
-            Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = null,
-                tint = LocalChatColors.current.subtle.copy(alpha = 0.5f),
-                modifier = Modifier.size(40.dp),
-            )
-        }
+        Icon(
+            Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = LocalChatColors.current.subtle.copy(alpha = 0.5f),
+            modifier = Modifier.size(40.dp),
+        )
         Spacer(Modifier.height(12.dp))
         Text(
-            stringResource(R.string.list_caught_up).let { if (retro) it.lowercase() else it },
+            stringResource(R.string.list_caught_up),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (hasEarlier) {
             Spacer(Modifier.height(4.dp))
             Text(
-                stringResource(R.string.list_caught_up_hint).let { if (retro) it.lowercase() else it },
+                stringResource(R.string.list_caught_up_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = LocalChatColors.current.subtle,
                 textAlign = TextAlign.Center,
@@ -367,35 +347,9 @@ private fun CaughtUp(hasEarlier: Boolean) {
     }
 }
 
-/** The list title; in Retro a prompt with a blinking cursor. */
 @Composable
 private fun ListTitle() {
-    val title = stringResource(R.string.list_title)
-    if (!LocalChatStyle.current.retro) {
-        Text(title, style = MaterialTheme.typography.headlineMedium)
-        return
-    }
-    val blink = rememberInfiniteTransition(label = "cursor")
-    val alpha by blink.animateFloat(
-        initialValue = 1f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(tween(durationMillis = 530, easing = { if (it < 0.5f) 0f else 1f }), RepeatMode.Reverse),
-        label = "cursor-alpha",
-    )
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            "> ${title.lowercase()}",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.width(4.dp))
-        Box(
-            Modifier
-                .size(width = 12.dp, height = 24.dp)
-                .alpha(alpha)
-                .background(MaterialTheme.colorScheme.primary),
-        )
-    }
+    Text(stringResource(R.string.list_title), style = MaterialTheme.typography.headlineMedium)
 }
 
 private val DRAWER_HEADER = 72.dp
@@ -489,7 +443,7 @@ private fun ConversationRow(conversation: Conversation, emphasized: Boolean, men
                                 .padding(top = 2.dp)
                                 .heightIn(min = 20.dp)
                                 .widthIn(min = 20.dp)
-                                .background(chat.unreadDot, if (LocalChatStyle.current.retro) RoundedCornerShape(2.dp) else RoundedCornerShape(10.dp))
+                                .background(chat.unreadDot, RoundedCornerShape(10.dp))
                                 .padding(horizontal = 6.dp),
                             contentAlignment = Alignment.Center,
                         ) {

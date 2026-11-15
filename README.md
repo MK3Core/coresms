@@ -16,8 +16,8 @@ real-world testing yet, so expect rough edges.
   only pinned and unread conversations (plus ones you're actively in); read
   conversations live in the Earlier drawer at the bottom, which you pull up.
   Long-press a conversation to pin, mark read/unread or delete it.
-- **Two themes:** Retro (the default), a terminal look in monospace green
-  and amber, and Modern, rounded blue bubbles. Switch in Settings.
+- **Two themes:** Retro (the default), plain monospace text in white on
+  black, and Modern, rounded blue bubbles. Switch in Settings.
 - **Texts and picture messages** in one thread, with iMessage-style bubbles,
   photos and videos inline (iPhone HEIC photos included), tap for full screen,
   long-press to save or share.
@@ -42,7 +42,8 @@ real-world testing yet, so expect rough edges.
   1 MB); compressing longer videos isn't built yet.
 - **Reactions** that work with iPhones: long-press a message to react, and
   reactions from iPhones and Google Messages show on the message they're for
-  instead of as separate texts.
+  instead of as separate texts. Tap a message with reactions to see who sent
+  each one.
 - **Notifications** per conversation with Reply and Mark as read, shown in
   Android's Conversations section.
 - Share photos from the gallery straight into a conversation, and "Send
