@@ -1,0 +1,22 @@
+# Gradle / Android Studio
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# Signing keys never go in the repo
+*.keystore
+*.jks
+
+# OS / editor
+.DS_Store
+*.sw?
+
+# Claude Code session state
+.claude/
