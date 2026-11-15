@@ -20,7 +20,29 @@ design direction in [docs/DESIGN.md](./docs/DESIGN.md).
   `coresms-keystore-backup/` (see its README.txt). Every release must use
   the same key.
 
-## Diagnosed: the iPhone photo that wouldn't download (2026-11-15)
+## Fixed in v0.3.2: Verizon wants the transaction id in the download link
+
+A second test (2026-11-15, 16:22–16:27) showed the real cause. CoreSMS got
+**404** less than a second after each notice arrived, while GrapheneOS
+Messaging downloaded a resend of the same photo with **200 OK**. CoreSMS
+requested the notice's content location as-is (45 characters). Messaging
+requested a 71-character link: the content location with the transaction
+id added. Verizon's carrier config sets `enabledTransID`
+(`SmsManager.MMS_CONFIG_APPEND_TRANSACTION_ID`) and `enabledNotifyWapMMSC`
+(`MMS_CONFIG_NOTIFY_WAP_MMSC_ENABLED`). Android's MMS service leaves both to
+the app. CoreSMS now:
+
+- adds the transaction id when the carrier asks for it, and on a 404 tries
+  the other form of the link once (old notices, carriers that differ);
+- sends the "received" confirmation to the download link when the carrier
+  asks for that;
+- forgets "carrier no longer has it" marks made before v0.3.2, so those
+  messages are retried if they haven't expired.
+
+The first iPhone photo below may have hit the same bug, although Messaging
+also got 404 for it later.
+
+## Earlier diagnosis: the iPhone photo that wouldn't download (2026-11-15)
 
 Phone logs (Pixel 9 Pro, GrapheneOS, Verizon) showed Verizon's MMS server
 answering **404 Not Found** to every request for that message: CoreSMS's

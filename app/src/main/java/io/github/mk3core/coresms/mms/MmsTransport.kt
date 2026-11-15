@@ -35,6 +35,33 @@ object MmsTransport {
     fun shareUri(context: Context, file: File): Uri =
         FileProvider.getUriForFile(context, "${context.packageName}.mmsfiles", file)
 
+    /**
+     * The address to download a message from. Some carriers (Verizon among
+     * them) want the notice's transaction id added to the end of its content
+     * location; without it the carrier answers 404 even for a brand-new
+     * message. Android's MMS service leaves this to the messaging app.
+     */
+    fun downloadUrl(context: Context, contentLocation: String, transactionId: String?, subId: Int): String {
+        if (transactionId.isNullOrBlank() || contentLocation.endsWith(transactionId)) return contentLocation
+        return if (carrierFlag(context, subId, SmsManager.MMS_CONFIG_APPEND_TRANSACTION_ID)) contentLocation + transactionId else contentLocation
+    }
+
+    /** The other form of [url] (with or without the transaction id), tried once if the first gets a 404. */
+    fun alternateUrl(contentLocation: String, transactionId: String?, url: String): String? = when {
+        transactionId.isNullOrBlank() -> null
+        url != contentLocation -> contentLocation
+        !contentLocation.endsWith(transactionId) -> contentLocation + transactionId
+        else -> null
+    }
+
+    /** Whether the carrier wants the "received" confirmation sent to the download address. */
+    fun notifyAtDownloadUrl(context: Context, subId: Int): Boolean =
+        carrierFlag(context, subId, SmsManager.MMS_CONFIG_NOTIFY_WAP_MMSC_ENABLED)
+
+    private fun carrierFlag(context: Context, subId: Int, key: String): Boolean = runCatching {
+        SmsManagers.forSubscription(context, subId).carrierConfigValues.getBoolean(key, false)
+    }.getOrDefault(false)
+
     /** Downloads the MMS at [contentLocation] into a file. Returns the result and the file. */
     suspend fun download(context: Context, contentLocation: String, subId: Int): Pair<Result, File> {
         val file = newFile(context, "download")
@@ -50,7 +77,7 @@ object MmsTransport {
     }
 
     /** Sends a PDU and waits for the result. Used for small protocol messages like acknowledgements. */
-    suspend fun sendAndWait(context: Context, pdu: ByteArray, subId: Int): Result {
+    suspend fun sendAndWait(context: Context, pdu: ByteArray, subId: Int, locationUrl: String? = null): Result {
         val file = newFile(context, "ack")
         file.writeBytes(pdu)
         val uri = shareUri(context, file)
@@ -58,7 +85,7 @@ object MmsTransport {
             withTimeoutOrNull(TIMEOUT_MS) {
                 awaitResult(context) { sent ->
                     SmsManagers.forSubscription(context, subId)
-                        .sendMultimediaMessage(context, uri, null, null, sent)
+                        .sendMultimediaMessage(context, uri, locationUrl, null, sent)
                 }
             } ?: Result(ok = false, resultCode = ERROR_TIMEOUT, httpStatus = 0, data = null)
         } finally {

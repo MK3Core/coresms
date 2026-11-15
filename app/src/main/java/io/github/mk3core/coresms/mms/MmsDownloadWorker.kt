@@ -79,17 +79,37 @@ class MmsDownloadWorker(context: Context, params: WorkerParameters) : CoroutineW
         // kept on disk until it's safely saved. A later attempt uses that copy
         // instead of asking the carrier again.
         val kept = keptDownload(context, id)
+        var downloadedFrom = MmsTransport.downloadUrl(context, location, pending.transactionId, pending.subId)
         if (kept.length() > 0) {
             MmsLog.record(context, id, "$attempt: using the copy downloaded earlier (${kb(kept.length())})")
         } else {
             MmsLog.record(context, id, "$attempt: asking the carrier")
             MmsStore.setDownloadState(context, id, MmsStore.ST_DOWNLOADING)
-            val (result, file) = try {
-                MmsTransport.download(context, location, pending.subId)
+            val url = MmsTransport.downloadUrl(context, location, pending.transactionId, pending.subId)
+            if (url != location) MmsLog.record(context, id, "Using the carrier's link with the transaction id added")
+            var (result, file) = try {
+                MmsTransport.download(context, url, pending.subId)
             } catch (e: Exception) {
                 Log.e(TAG, "Download of MMS $id couldn't start", e)
                 MmsLog.record(context, id, "Couldn't start the download: ${e.javaClass.simpleName}")
                 return retryOrFail(id, pending, context.getString(R.string.mms_error_start, e.message.orEmpty()))
+            }
+            // A 404 may just mean the link's form was wrong for this carrier; try the other form once.
+            val alternate = MmsTransport.alternateUrl(location, pending.transactionId, url)
+            if (MmsTransport.isPermanent(result) && alternate != null) {
+                file.delete()
+                MmsLog.record(
+                    context,
+                    id,
+                    "Carrier answered HTTP ${result.httpStatus}; trying the link " +
+                        if (alternate == location) "without the transaction id" else "with the transaction id added",
+                )
+                val second = runCatching { MmsTransport.download(context, alternate, pending.subId) }.getOrNull()
+                if (second != null) {
+                    result = second.first
+                    file = second.second
+                    if (result.ok) downloadedFrom = alternate
+                }
             }
             try {
                 if (!result.ok || file.length() == 0L) {
@@ -140,7 +160,7 @@ class MmsDownloadWorker(context: Context, params: WorkerParameters) : CoroutineW
         MmsLog.record(context, id, "Saved")
         MmsLog.move(context, id, newId)
         kept.delete()
-        acknowledge(pending, newId)
+        acknowledge(pending, newId, downloadedFrom)
         Notifications.updateForNewMessage(context, threadIdOf(newId) ?: pending.threadId)
         return Result.success()
     }
@@ -176,7 +196,7 @@ class MmsDownloadWorker(context: Context, params: WorkerParameters) : CoroutineW
     }
 
     /** Tells the carrier we have the message, so it stops resending the notification. */
-    private suspend fun acknowledge(pending: Pending, messageId: Long) {
+    private suspend fun acknowledge(pending: Pending, messageId: Long, downloadUrl: String) {
         val transactionId = pending.transactionId ?: return
         runCatching {
             val ack = NotifyRespInd(
@@ -185,7 +205,9 @@ class MmsDownloadWorker(context: Context, params: WorkerParameters) : CoroutineW
                 PduHeaders.STATUS_RETRIEVED,
             )
             val bytes = PduComposer(applicationContext, ack).make() ?: return
-            val result = MmsTransport.sendAndWait(applicationContext, bytes, pending.subId)
+            // Some carriers (Verizon) want the confirmation at the download address.
+            val locationUrl = downloadUrl.takeIf { MmsTransport.notifyAtDownloadUrl(applicationContext, pending.subId) }
+            val result = MmsTransport.sendAndWait(applicationContext, bytes, pending.subId, locationUrl)
             MmsLog.record(
                 applicationContext,
                 messageId,
