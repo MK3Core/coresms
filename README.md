@@ -13,8 +13,8 @@ real-world testing yet, so expect rough edges.
 ## What it does
 
 - **Conversations** with contact names and photos. The home screen shows
-  only pinned and unread conversations (plus ones you're actively in); read
-  conversations live in the Earlier drawer at the bottom, which you pull up.
+  pinned conversations across the top, then everything newest first, with
+  unread ones in bold.
   Long-press a conversation to pin, mark read/unread or delete it.
 - **Two themes:** Retro (the default), plain monospace text in white on
   black, and Modern, rounded blue bubbles. Switch in Settings.
@@ -40,10 +40,10 @@ real-world testing yet, so expect rough edges.
 - **Sending photos and videos.** Photos are resized to fit your carrier's
   MMS limit. Videos are sent as-is if they fit (most carriers allow about
   1 MB); compressing longer videos isn't built yet.
-- **Reactions** that work with iPhones: long-press a message to react, and
+- **Reactions** that work with iPhones: tap a message to react, and
   reactions from iPhones and Google Messages show on the message they're for
-  instead of as separate texts. Tap a message with reactions to see who sent
-  each one.
+  instead of as separate texts. Tap the reactions on a
+  message to see who sent each one.
 - **Notifications** per conversation with Reply and Mark as read, shown in
   Android's Conversations section.
 - Share photos from the gallery straight into a conversation, and "Send

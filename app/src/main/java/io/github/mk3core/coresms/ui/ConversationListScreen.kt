@@ -1,21 +1,9 @@
 package io.github.mk3core.coresms.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.BottomSheetScaffoldState
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.unit.Dp
 import io.github.mk3core.coresms.ui.theme.LocalChatStyle
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -72,7 +59,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -111,10 +97,6 @@ fun ConversationListScreen(
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf<Conversation?>(null) }
-    val drawer = rememberBottomSheetScaffoldState()
-    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val peek = if (sections.earlier.isEmpty()) 0.dp else DRAWER_HEADER + bottomInset
-    val drawerOpen = drawer.bottomSheetState.targetValue == SheetValue.Expanded
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -144,9 +126,8 @@ fun ConversationListScreen(
             )
         },
         floatingActionButton = {
-            if (!searching && !drawerOpen) {
-                // Sit above the Earlier drawer's peek.
-                val lift = Modifier.padding(bottom = (peek - bottomInset).coerceAtLeast(0.dp))
+            if (!searching) {
+                val lift = Modifier
                 if (LocalChatStyle.current.retro) {
                     NewMessageText(actions.onNew, lift)
                 } else {
@@ -171,17 +152,7 @@ fun ConversationListScreen(
                 items(results, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
             }
         } else {
-            DrawerList(
-                sections,
-                showPermissionBanner,
-                showNumberBanner,
-                actions,
-                menu,
-                drawer,
-                peek,
-                bottomInset,
-                padding.calculateTopPadding(),
-            )
+            PlainList(sections, showPermissionBanner, showNumberBanner, actions, menu, Modifier.padding(padding))
         }
     }
 
@@ -201,155 +172,40 @@ fun ConversationListScreen(
 }
 
 /**
- * The signature layout: the first screen holds only pinned conversations and
- * what needs you. Everything else lives in the Earlier drawer, which peeks up
- * from the bottom and pulls up over the list, so a cleared inbox is calm and
- * nearly empty with history a pull away.
+ * Pinned conversations across the top, then every conversation newest first.
+ * Unread ones stand out by weight and their count, not by position.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DrawerList(
+private fun PlainList(
     sections: ListSections,
     showPermissionBanner: Boolean,
     showNumberBanner: Boolean,
     actions: ListActions,
     menu: RowMenu,
-    drawer: BottomSheetScaffoldState,
-    peek: Dp,
-    bottomInset: Dp,
-    topPadding: Dp,
+    modifier: Modifier,
 ) {
-    val scope = rememberCoroutineScope()
-    val open = drawer.bottomSheetState.targetValue == SheetValue.Expanded
-    BackHandler(enabled = open) { scope.launch { drawer.bottomSheetState.partialExpand() } }
-
-    BottomSheetScaffold(
-        scaffoldState = drawer,
-        modifier = Modifier.padding(top = topPadding),
-        sheetPeekHeight = peek,
-        sheetSwipeEnabled = sections.earlier.isNotEmpty(),
-        sheetDragHandle = null,
-        sheetShape = RoundedCornerShape(topStart = LocalChatStyle.current.sheetRadius, topEnd = LocalChatStyle.current.sheetRadius),
-        sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        sheetShadowElevation = if (LocalChatStyle.current.retro) 0.dp else 8.dp,
-        sheetTonalElevation = 0.dp,
-        containerColor = MaterialTheme.colorScheme.background,
-        sheetContent = {
-            if (sections.earlier.isNotEmpty()) {
-                EarlierDrawer(sections.earlier, open, menu, bottomInset) {
-                    scope.launch { if (open) drawer.bottomSheetState.partialExpand() else drawer.bottomSheetState.expand() }
+    val all = remember(sections) { (sections.attention + sections.earlier).sortedByDescending { it.date } }
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+        item(key = "top") {
+            Column(Modifier.fillMaxWidth()) {
+                if (showPermissionBanner) {
+                    InfoCard(
+                        title = stringResource(R.string.banner_permissions_title),
+                        body = stringResource(R.string.banner_permissions_body),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) { TextButton(onClick = actions.onFixPermissions) { Text(stringResource(R.string.allow)) } }
                 }
-            }
-        },
-    ) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = peek + 88.dp)) {
-            item(key = "first-screen") {
-                Column(Modifier.fillMaxWidth()) {
-                    if (showPermissionBanner) {
-                        InfoCard(
-                            title = stringResource(R.string.banner_permissions_title),
-                            body = stringResource(R.string.banner_permissions_body),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) { TextButton(onClick = actions.onFixPermissions) { Text(stringResource(R.string.allow)) } }
-                    }
-                    if (showNumberBanner) {
-                        InfoCard(
-                            title = stringResource(R.string.banner_number_title),
-                            body = stringResource(R.string.banner_number_body),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) { TextButton(onClick = actions.onAddNumber) { Text(stringResource(R.string.banner_number_button)) } }
-                    }
-                    if (sections.pinned.isNotEmpty()) PinnedRow(sections.pinned, menu)
+                if (showNumberBanner) {
+                    InfoCard(
+                        title = stringResource(R.string.banner_number_title),
+                        body = stringResource(R.string.banner_number_body),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) { TextButton(onClick = actions.onAddNumber) { Text(stringResource(R.string.banner_number_button)) } }
                 }
-            }
-            if (sections.attention.isEmpty()) {
-                item(key = "caught-up") { CaughtUp(hasEarlier = sections.earlier.isNotEmpty()) }
-            } else {
-                items(sections.attention, key = { it.threadId }) { ConversationRow(it, emphasized = true, menu = menu) }
+                if (sections.pinned.isNotEmpty()) PinnedRow(sections.pinned, menu)
             }
         }
-    }
-}
-
-/** The Earlier drawer: a header you tap or drag, then every conversation already dealt with. */
-@Composable
-private fun EarlierDrawer(
-    earlier: List<Conversation>,
-    open: Boolean,
-    menu: RowMenu,
-    bottomInset: Dp,
-    onToggle: () -> Unit,
-) {
-    val style = LocalChatStyle.current
-    val chat = LocalChatColors.current
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .then(if (style.retro) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(topStart = style.sheetRadius, topEnd = style.sheetRadius)) else Modifier),
-    ) {
-        Column(
-            Modifier.fillMaxWidth().height(DRAWER_HEADER).clickable(onClick = onToggle),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(Modifier.height(10.dp))
-            Box(
-                Modifier
-                    .size(width = 36.dp, height = 4.dp)
-                    .background(chat.subtle.copy(alpha = 0.4f), RoundedCornerShape(2.dp)),
-            )
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.list_earlier),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    earlier.size.toString(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = chat.subtle,
-                )
-            }
-        }
-        LazyColumn(
-            Modifier.fillMaxWidth().fillMaxHeight(),
-            contentPadding = PaddingValues(bottom = bottomInset + 16.dp),
-        ) {
-            items(earlier, key = { it.threadId }) { ConversationRow(it, emphasized = false, menu = menu) }
-        }
-    }
-}
-
-@Composable
-private fun CaughtUp(hasEarlier: Boolean) {
-    Column(
-        Modifier.fillMaxWidth().padding(top = 120.dp, start = 32.dp, end = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            Icons.Filled.CheckCircle,
-            contentDescription = null,
-            tint = LocalChatColors.current.subtle.copy(alpha = 0.5f),
-            modifier = Modifier.size(40.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            stringResource(R.string.list_caught_up),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (hasEarlier) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                stringResource(R.string.list_caught_up_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = LocalChatColors.current.subtle,
-                textAlign = TextAlign.Center,
-            )
-        }
+        items(all, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
     }
 }
 
@@ -377,8 +233,6 @@ private fun NewMessageText(onClick: () -> Unit, modifier: Modifier) {
 private fun ListTitle() {
     Text(stringResource(R.string.list_title), style = MaterialTheme.typography.headlineMedium)
 }
-
-private val DRAWER_HEADER = 72.dp
 
 @Composable
 private fun PinnedRow(pinned: List<Conversation>, menu: RowMenu) {

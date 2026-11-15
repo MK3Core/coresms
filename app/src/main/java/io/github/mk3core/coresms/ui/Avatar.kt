@@ -33,19 +33,19 @@ private val AvatarColors = listOf(
 )
 
 /**
- * Retro's avatar: just text, like `>CC`, or `>#` for a number with no name.
+ * Retro's avatar: just initials, like `CC`, or `#` for a number with no name.
  * No shapes or photos, so it reads as part of the text around it.
  */
 @Composable
 private fun TextAvatar(label: String, size: Dp, modifier: Modifier) {
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         Text(
-            ">$label",
+            label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Medium,
-            // Three monospace characters should fit the box.
-            fontSize = (size.value * 0.34f).sp,
+            // Up to three monospace characters should fit the box.
+            fontSize = (size.value * if (label.length > 2) 0.34f else 0.4f).sp,
             maxLines = 1,
             softWrap = false,
         )
@@ -96,9 +96,9 @@ fun Avatar(contact: Contact, size: Dp, modifier: Modifier = Modifier) {
 @Composable
 fun ConversationAvatar(people: List<Contact>, size: Dp, modifier: Modifier = Modifier) {
     if (LocalChatStyle.current.retro && people.size > 1) {
-        // A group: the first letter of the first two people, and + for more.
+        // A group: the first letter of the first two people, and + to mark it as a group.
         val letters = people.take(2).joinToString("") { p -> p.name?.let(::initials)?.take(1) ?: "#" }
-        TextAvatar(letters + if (people.size > 2) "+" else "", size, modifier)
+        TextAvatar("$letters+", size, modifier)
         return
     }
     if (people.size <= 1) {

@@ -12,9 +12,6 @@
 
     <!-- Conversation list -->
     <string name="list_title">Messages</string>
-    <string name="list_earlier">Earlier</string>
-    <string name="list_caught_up">You\'re all caught up</string>
-    <string name="list_caught_up_hint">Pull up Earlier for the rest</string>
     <string name="banner_permissions_title">Allow access</string>
     <string name="banner_permissions_body">CoreSMS needs your contacts for names and photos, your phone number for group messages, and permission to notify you.</string>
     <string name="banner_number_title">Add your phone number</string>
@@ -140,7 +137,6 @@
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_body">Sounds and alerts. Long-press a message notification to set them per conversation.</string>
     <string name="new_message_short">+ new</string>
-    <string name="reactions_title">Reactions</string>
     <string name="reactions_you">You</string>
     <string name="reactions_someone">Someone</string>
     <string name="settings_theme">Theme</string>

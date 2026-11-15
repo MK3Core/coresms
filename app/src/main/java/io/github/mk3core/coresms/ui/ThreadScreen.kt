@@ -345,24 +345,27 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
     val chat = LocalChatColors.current
     val outgoing = !message.incoming
     var menuOpen by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
-    var showReactions by remember { mutableStateOf(false) }
+    var showWho by remember { mutableStateOf(false) }
     val sender = message.sender?.let { address -> people.firstOrNull { Phone.same(it.address, address) } ?: Contact(address, null, null) }
+    val time = Times.time(context, message.date)
+    // In a group, someone else's messages carry their name and time above the bubble.
+    val labelAbove = isGroup && !outgoing
+    val indent = if (labelAbove) 38.dp else 0.dp
 
     Column(
         Modifier.fillMaxWidth().padding(top = if (placement.firstInGroup) 8.dp else 2.dp),
         horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
     ) {
-        if (isGroup && !outgoing && placement.firstInGroup && sender != null) {
+        if (labelAbove) {
             Text(
-                sender.name ?: sender.address,
+                if (placement.firstInGroup && sender != null) "${sender.name ?: sender.address}  $time" else time,
                 style = MaterialTheme.typography.labelSmall,
                 color = chat.subtle,
-                modifier = Modifier.padding(start = 48.dp, bottom = 2.dp),
+                modifier = Modifier.padding(start = indent + 10.dp, bottom = 2.dp),
             )
         }
         Row(verticalAlignment = Alignment.Bottom) {
-            if (isGroup && !outgoing) {
+            if (labelAbove) {
                 if (placement.lastInGroup && sender != null) Avatar(sender, 30.dp) else Spacer(Modifier.width(30.dp))
                 Spacer(Modifier.width(8.dp))
             }
@@ -375,8 +378,7 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                             when {
                                 message.pending != null && message.pending.canRetry -> actions.onRetry(message)
                                 message.status == MessageStatus.Failed -> actions.onRetry(message)
-                                message.reactions.isNotEmpty() -> showReactions = true
-                                else -> showTime = !showTime
+                                else -> menuOpen = true
                             }
                         },
                         onLongClick = { menuOpen = true },
@@ -390,28 +392,33 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                         Modifier
                             .align(if (outgoing) Alignment.TopStart else Alignment.TopEnd)
                             .offset(x = if (outgoing) (-8).dp else 8.dp, y = (-14).dp)
-                            .clickable { showReactions = true },
+                            .clickable { showWho = !showWho },
                     )
-                }
-                if (showReactions) {
-                    ReactionsDialog(message, people, onDismiss = { showReactions = false })
                 }
                 MessageMenu(message, menuOpen, onDismiss = { menuOpen = false }, actions)
             }
         }
-        if (placement.showStatus || showTime) {
-            val text = when {
-                message.status == MessageStatus.Failed ->
-                    stringResource(R.string.thread_failed) + (message.error?.let { " · $it" } ?: "")
-                message.status == MessageStatus.Sending -> stringResource(R.string.thread_sending)
-                showTime -> Times.time(context, message.date)
-                else -> stringResource(R.string.thread_sent)
-            }
+        if (showWho && message.reactions.isNotEmpty()) {
+            ReactionLine(
+                message,
+                people,
+                Modifier.padding(start = indent + 6.dp, end = 6.dp, top = 3.dp).clickable { showWho = false },
+            )
+        }
+        val below = when {
+            message.status == MessageStatus.Failed ->
+                stringResource(R.string.thread_failed) + (message.error?.let { " · $it" } ?: "")
+            message.status == MessageStatus.Sending -> stringResource(R.string.thread_sending)
+            labelAbove -> null
+            outgoing && placement.showStatus -> "$time · ${stringResource(R.string.thread_sent)}"
+            else -> time
+        }
+        if (below != null) {
             Text(
-                text,
+                below,
                 style = MaterialTheme.typography.labelSmall,
                 color = if (message.status == MessageStatus.Failed) chat.failed else chat.subtle,
-                modifier = Modifier.padding(horizontal = if (isGroup && !outgoing) 52.dp else 6.dp, vertical = 2.dp),
+                modifier = Modifier.padding(start = indent + 6.dp, end = 6.dp, top = 2.dp),
             )
         }
     }
@@ -648,51 +655,27 @@ private fun MediaGrid(items: List<Attachment>, onOpen: (Attachment) -> Unit) {
     }
 }
 
-/** Who reacted with what, opened by tapping a message that has reactions. */
+/** Who reacted with what, a quiet line under the message shown by tapping its reactions. */
 @Composable
-private fun ReactionsDialog(message: Message, people: List<Contact>, onDismiss: () -> Unit) {
-    val context = LocalContext.current
+private fun ReactionLine(message: Message, people: List<Contact>, modifier: Modifier) {
     val you = stringResource(R.string.reactions_you)
+    val someone = stringResource(R.string.reactions_someone)
     // In a one-to-one conversation an incoming reaction may not name its sender.
     val only = people.singleOrNull()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.reactions_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                message.reactions.forEach { reaction ->
-                    val person = when {
-                        reaction.fromMe -> null
-                        reaction.sender != null ->
-                            people.firstOrNull { Phone.same(it.address, reaction.sender) } ?: Contact(reaction.sender, null, null)
-                        else -> only
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (person != null) Avatar(person, 32.dp) else Spacer(Modifier.width(32.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            when {
-                                reaction.fromMe -> you
-                                person != null -> person.name ?: person.address
-                                else -> stringResource(R.string.reactions_someone)
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(reaction.emoji, fontSize = 22.sp)
-                    }
-                }
-                Text(
-                    Times.short(context, message.date),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = LocalChatColors.current.subtle,
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    val text = message.reactions.joinToString("   ") { reaction ->
+        val name = when {
+            reaction.fromMe -> you
+            reaction.sender != null -> people.firstOrNull { Phone.same(it.address, reaction.sender) }
+                ?.let { it.name ?: it.address } ?: reaction.sender
+            else -> only?.let { it.name ?: it.address } ?: someone
+        }
+        "${reaction.emoji} $name"
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        color = LocalChatColors.current.subtle,
+        modifier = modifier,
     )
 }
 

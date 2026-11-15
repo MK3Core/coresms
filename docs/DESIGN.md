@@ -47,13 +47,12 @@ empty screen instead of a wall of history.
 hint that past conversations are below, such as a small chevron or the top
 edge of the first read conversation peeking up from the bottom.
 
-**The Earlier drawer** (since v0.4.0): read conversations, newest first, in
-a lighter style (regular weight, muted preview), live in a drawer whose
-header peeks up from the bottom ("Earlier" and a count). Drag it up or tap
-the header to pull the history over the list; drag down, tap again or press
-Back to put it away. This replaced the first version, a single long scroll
-with read conversations one screen further down, which felt like empty
-space rather than a place. The first screen is still just what needs you.
+**Back to a plain list** (v0.4.3): pinned conversations across the top,
+then every conversation newest first, with unread ones in bold with a
+count. Two experiments came first and were dropped after real use: read
+conversations starting a screen further down (felt like empty space), and
+an "Earlier" drawer pulled up from the bottom (felt odd). The unique design
+idea is still open.
 
 **Details to get right:**
 
@@ -74,12 +73,14 @@ space rather than a place. The first screen is still just what needs you.
 
 - A conversation you're actively texting in stays above the fold for 20
   minutes after its last message.
-- The Earlier drawer's header is 72dp tall above the navigation bar.
+- Every message shows its time: under the bubble, or after the sender's
+  name above it in a group. Tapping a message opens the reaction menu;
+  tapping the reactions on it shows a quiet line of who reacted with what.
 - Two themes, chosen in Settings:
   - **Retro** (the default): monospace text, white on true black, with
     color only where it means something (red for failures). Your messages
     sit on dark gray, theirs in a thin outline. No circles: avatars are
-    text like `>CC` (`>#` for an unnamed number, `>CA+` for a group), the
+    initials as text like `CC` (`#` for an unnamed number, `CA+` for a group), the
     new-message button is a boxed `+ new`, and the remaining buttons and
     badges are small rounded squares. Always dark. A first version with phosphor green, amber, a blinking
     cursor and boxed avatars was too much; plain is the point.
