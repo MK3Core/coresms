@@ -28,6 +28,7 @@ import io.github.mk3core.coresms.data.Contact
 import io.github.mk3core.coresms.data.Conversations
 import io.github.mk3core.coresms.data.Message
 import io.github.mk3core.coresms.data.MessageChanges
+import io.github.mk3core.coresms.data.MessageHit
 import io.github.mk3core.coresms.data.MessageStatus
 import io.github.mk3core.coresms.data.Messages
 import io.github.mk3core.coresms.mms.MediaTooLargeException
@@ -65,6 +66,8 @@ class ThreadActivity : ComponentActivity() {
     /** Any unread incoming message, including reactions folded into other messages. */
     private var hasUnread by mutableStateOf(false)
     private var resumed by mutableStateOf(false)
+    /** A message opened from search: shown and highlighted instead of the newest. */
+    private var focusKey: String? = null
 
     private val pickMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         if (uris.isNotEmpty()) attachments = (attachments + uris).distinct().take(10)
@@ -80,8 +83,15 @@ class ThreadActivity : ComponentActivity() {
         }
         draft = savedInstanceState?.getString(STATE_DRAFT) ?: intent.getStringExtra(EXTRA_DRAFT).orEmpty()
         attachments = IntentCompat.getParcelableArrayListExtra(intent, EXTRA_ATTACHMENTS, Uri::class.java).orEmpty()
+        focusKey = intent.getStringExtra(EXTRA_FOCUS_KEY)
+        val focusDate = intent.getLongExtra(EXTRA_FOCUS_DATE, -1)
 
         lifecycleScope.launch {
+            // Load far enough back to include the message opened from search.
+            if (focusKey != null && focusDate >= 0 && savedInstanceState == null) {
+                val newer = withContext(Dispatchers.IO) { Messages.countSince(applicationContext, threadId, focusDate) }
+                limit = maxOf(PAGE_SIZE, newer + PAGE_SIZE / 2)
+            }
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 MessageChanges.observe(this@ThreadActivity).collect { reload() }
             }
@@ -103,6 +113,7 @@ class ThreadActivity : ComponentActivity() {
                         resendFor = resendFor,
                         hasUnread = hasUnread,
                         resumed = resumed,
+                        focusKey = focusKey,
                     ),
                     actions = ThreadActions(
                         onBack = ::finish,
@@ -350,13 +361,25 @@ class ThreadActivity : ComponentActivity() {
         private const val EXTRA_THREAD_ID = "thread_id"
         private const val EXTRA_DRAFT = "draft"
         private const val EXTRA_ATTACHMENTS = "attachments"
+        private const val EXTRA_FOCUS_KEY = "focus_key"
+        private const val EXTRA_FOCUS_DATE = "focus_date"
         private const val STATE_DRAFT = "draft"
         private const val PAGE_SIZE = 300
 
-        fun intent(context: Context, threadId: Long, draft: String? = null, attachments: List<Uri> = emptyList()): Intent =
+        fun intent(
+            context: Context,
+            threadId: Long,
+            draft: String? = null,
+            attachments: List<Uri> = emptyList(),
+            focus: MessageHit? = null,
+        ): Intent =
             Intent(context, ThreadActivity::class.java)
                 .putExtra(EXTRA_THREAD_ID, threadId)
                 .apply {
+                    focus?.let {
+                        putExtra(EXTRA_FOCUS_KEY, it.messageKey)
+                        putExtra(EXTRA_FOCUS_DATE, it.date)
+                    }
                     draft?.let { putExtra(EXTRA_DRAFT, it) }
                     if (attachments.isNotEmpty()) {
                         putParcelableArrayListExtra(EXTRA_ATTACHMENTS, ArrayList(attachments))

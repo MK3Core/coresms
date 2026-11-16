@@ -63,6 +63,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mk3core.coresms.R
 import io.github.mk3core.coresms.data.Conversation
+import io.github.mk3core.coresms.data.MessageHit
+import io.github.mk3core.coresms.data.Words
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import kotlinx.coroutines.delay
 import io.github.mk3core.coresms.ui.theme.LocalChatColors
 
 /** What the list needs to know to place each conversation. */
@@ -83,6 +89,9 @@ class ListActions(
     val onDelete: (Conversation) -> Unit,
     val onFixPermissions: () -> Unit,
     val onAddNumber: () -> Unit,
+    /** Messages containing the query's words, best first (see SearchIndex). */
+    val onSearchMessages: suspend (String) -> List<MessageHit>,
+    val onOpenMessage: (MessageHit) -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +100,8 @@ fun ConversationListScreen(
     sections: ListSections,
     showPermissionBanner: Boolean,
     showNumberBanner: Boolean,
+    /** Search looks inside every message, not just names and latest messages. */
+    messageSearch: Boolean,
     actions: ListActions,
 ) {
     var searching by remember { mutableStateOf(false) }
@@ -111,7 +122,7 @@ fun ConversationListScreen(
                 },
                 title = {
                     if (searching) {
-                        SearchField(query, onChange = { query = it })
+                        SearchField(query, messageSearch, onChange = { query = it })
                     } else {
                         ListTitle()
                     }
@@ -145,11 +156,7 @@ fun ConversationListScreen(
     ) { padding ->
         val menu = RowMenu(actions, onAskDelete = { confirmDelete = it })
         if (searching) {
-            val all = sections.pinned + sections.attention + sections.earlier
-            val results = if (query.isBlank()) emptyList() else all.filter { it.matches(query) }
-            LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-                items(results, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
-            }
+            SearchResults(sections, query, messageSearch, actions, menu, Modifier.padding(padding))
         } else {
             PlainList(sections, showPermissionBanner, showNumberBanner, actions, menu, Modifier.padding(padding))
         }
@@ -374,12 +381,113 @@ private fun WithMenu(conversation: Conversation, menu: RowMenu, content: @Compos
     }
 }
 
+/** Conversations whose name or latest message matches, then matching messages from any conversation. */
 @Composable
-private fun SearchField(query: String, onChange: (String) -> Unit) {
+private fun SearchResults(
+    sections: ListSections,
+    query: String,
+    messageSearch: Boolean,
+    actions: ListActions,
+    menu: RowMenu,
+    modifier: Modifier,
+) {
+    val q = query.trim()
+    val all = remember(sections) { sections.pinned + sections.attention + sections.earlier }
+    val byThread = remember(all) { all.associateBy { it.threadId } }
+    val conversations = if (q.isEmpty()) emptyList() else all.filter { it.matches(q) }
+    var hits by remember { mutableStateOf(emptyList<MessageHit>()) }
+    var searchedFor by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(q, messageSearch) {
+        if (q.isEmpty() || !messageSearch) {
+            hits = emptyList()
+            searchedFor = q
+            return@LaunchedEffect
+        }
+        delay(SEARCH_PAUSE_MS) // wait for typing to pause
+        hits = actions.onSearchMessages(q)
+        searchedFor = q
+    }
+    // Messages from conversations that have since been deleted are left out.
+    val shown = hits.filter { it.threadId in byThread }
+    LazyColumn(modifier.fillMaxSize()) {
+        if (conversations.isNotEmpty() && shown.isNotEmpty()) item(key = "h-conv") { SectionHeader(stringResource(R.string.search_section_conversations)) }
+        items(conversations, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
+        if (shown.isNotEmpty()) {
+            item(key = "h-msg") { SectionHeader(stringResource(R.string.search_section_messages)) }
+            items(shown, key = { it.messageKey }) { hit ->
+                MessageHitRow(hit, byThread.getValue(hit.threadId), q, onClick = { actions.onOpenMessage(hit) })
+            }
+        }
+        if (q.isNotEmpty() && searchedFor == q && conversations.isEmpty() && shown.isEmpty()) {
+            item(key = "none") {
+                Text(
+                    stringResource(R.string.search_no_results),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = LocalChatColors.current.subtle,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
+                )
+            }
+        }
+    }
+}
+
+private const val SEARCH_PAUSE_MS = 200L
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelMedium,
+        color = LocalChatColors.current.subtle,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+    )
+}
+
+/** One message found by search: who it's with, when, and the words that matched in bold. */
+@Composable
+private fun MessageHitRow(hit: MessageHit, conversation: Conversation, query: String, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val chat = LocalChatColors.current
+    val strong = MaterialTheme.colorScheme.onSurface
+    val text = remember(hit.body, query) {
+        val (snippet, ranges) = Words.snippet(hit.body, Words.matches(hit.body, query))
+        buildAnnotatedString {
+            append(snippet)
+            ranges.forEach { range ->
+                if (range.last < snippet.length) addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = strong), range.first, range.last + 1)
+            }
+        }
+    }
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ConversationAvatar(conversation.people, 40.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    conversation.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(Times.short(context, hit.date), style = MaterialTheme.typography.labelMedium, color = chat.subtle)
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = chat.subtle, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun SearchField(query: String, messageSearch: Boolean, onChange: (String) -> Unit) {
     TextField(
         value = query,
         onValueChange = onChange,
-        placeholder = { Text(stringResource(R.string.search_hint)) },
+        placeholder = { Text(stringResource(if (messageSearch) R.string.search_hint_messages else R.string.search_hint)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         colors = TextFieldDefaults.colors(

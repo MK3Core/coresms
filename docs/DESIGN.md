@@ -60,7 +60,10 @@ idea is still open.
   stays where it was until you leave the list, then settles below the fold.
   Rows never move under your finger.
 - **Search** is always one tap away at the top, and it covers every
-  conversation, read or not.
+  conversation, read or not. It also finds words inside any message
+  (best matches first, recent ones favored); tapping a result opens the
+  conversation at that message, briefly highlighted. Settings can turn
+  message search off, which deletes its word index.
 - **Starting a new chat** (FAB or button) is available from the empty
   state too.
 - **Mark as unread** (swipe or long-press) brings a conversation back above

@@ -36,7 +36,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import io.github.mk3core.coresms.data.MessageChanges
 import io.github.mk3core.coresms.data.Prefs
+import io.github.mk3core.coresms.data.SearchIndex
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import io.github.mk3core.coresms.data.SelfNumbers
 import io.github.mk3core.coresms.ui.theme.CoreSmsTheme
 import io.github.mk3core.coresms.ui.theme.LocalChatColors
@@ -104,6 +110,7 @@ private fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
             ThemePicker()
+            SearchSetting()
             SettingRow(stringResource(R.string.change_default), stringResource(R.string.settings_default_body)) {
                 context.startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
             }
@@ -153,6 +160,41 @@ private fun ThemePicker() {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SearchSetting() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var on by remember { mutableStateOf(Prefs.searchMessages(context)) }
+    fun set(value: Boolean) {
+        on = value
+        Prefs.setSearchMessages(context, value)
+        if (value) {
+            // The background sync builds the index.
+            MessageChanges.notifyLocalChange()
+        } else {
+            scope.launch(Dispatchers.IO) { SearchIndex.deleteIndex(context.applicationContext) }
+        }
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected = on, role = Role.Switch) { set(!on) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.settings_search), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(if (on) R.string.settings_search_on_body else R.string.settings_search_off_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = LocalChatColors.current.subtle,
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        Switch(checked = on, onCheckedChange = null)
     }
 }
 

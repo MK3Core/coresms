@@ -7,6 +7,8 @@ import androidx.compose.foundation.BorderStroke
 import android.text.format.Formatter
 import android.util.Patterns
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -121,6 +123,8 @@ data class ThreadState(
     val hasUnread: Boolean = false,
     /** The screen is in front, so reaching the bottom counts as reading. */
     val resumed: Boolean = true,
+    /** A message opened from search, to scroll to and highlight once. */
+    val focusKey: String? = null,
 ) {
     val isGroup get() = people.size > 1
     val title: String
@@ -168,6 +172,8 @@ private const val GROUP_GAP_MS = 3 * 60 * 1000L
 private const val DIVIDER_GAP_MS = 60 * 60 * 1000L
 private const val READ_AFTER_MS = 500L
 private const val COPIED_MS = 1500L
+/** How long a message opened from search stays highlighted. */
+private const val FLASH_MS = 2000L
 /** Where the "New messages" line lands when a conversation opens: 3/4 of the way up. */
 private const val UNREAD_LINE_FROM_BOTTOM = 0.75f
 
@@ -341,6 +347,13 @@ private fun MessageList(state: ThreadState, actions: ThreadActions, modifier: Mo
     var unreadKey by rememberSaveable { mutableStateOf<String?>(null) }
     var positioned by rememberSaveable { mutableStateOf(false) }
     var lastNewest by rememberSaveable { mutableStateOf<String?>(null) }
+    var flashKey by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(flashKey) {
+        if (flashKey != null) {
+            delay(FLASH_MS)
+            flashKey = null
+        }
+    }
     val oldestUnread = state.messages.firstOrNull { it.incoming && !it.read }?.key
     val newestKey = placements.firstOrNull()?.message?.key
     LaunchedEffect(newestKey, oldestUnread) {
@@ -350,6 +363,12 @@ private fun MessageList(state: ThreadState, actions: ThreadActions, modifier: Mo
             positioned = true
             lastNewest = newestKey
             unreadKey = oldestUnread
+            val focus = placements.indexOfFirst { it.message.key == state.focusKey }
+            if (focus >= 0) {
+                listState.scrollToMiddle(focus)
+                flashKey = state.focusKey
+                return@LaunchedEffect
+            }
             val index = placements.indexOfFirst { it.message.key == oldestUnread }
             if (index >= 0) listState.scrollToUnread(index) else listState.scrollToItem(0)
             return@LaunchedEffect
@@ -384,7 +403,14 @@ private fun MessageList(state: ThreadState, actions: ThreadActions, modifier: Mo
             Column {
                 if (placement.message.key == unreadKey) UnreadDivider()
                 if (placement.divider) TimeDivider(placement.message.date)
-                MessageRow(placement, state.isGroup, peopleByAddress, actions)
+                val flash by animateColorAsState(
+                    if (placement.message.key == flashKey) LocalChatColors.current.subtle.copy(alpha = 0.22f) else Color.Transparent,
+                    animationSpec = tween(600),
+                    label = "flash",
+                )
+                Box(Modifier.fillMaxWidth().background(flash, RoundedCornerShape(8.dp))) {
+                    MessageRow(placement, state.isGroup, peopleByAddress, actions)
+                }
             }
         }
     }
@@ -401,6 +427,14 @@ private suspend fun LazyListState.scrollToUnread(index: Int) {
     val viewport = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
     // The list is reversed: scrolling backward reveals newer messages below.
     scrollBy(-(viewport * UNREAD_LINE_FROM_BOTTOM - item.size))
+}
+
+/** Scrolls so the item at [index] (a message opened from search) sits mid-screen. */
+private suspend fun LazyListState.scrollToMiddle(index: Int) {
+    scrollToItem(index)
+    val item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index } ?: return
+    val viewport = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+    scrollBy(-(viewport / 2f - item.size / 2f))
 }
 
 @Composable

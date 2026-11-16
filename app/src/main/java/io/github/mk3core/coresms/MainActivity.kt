@@ -20,6 +20,7 @@ import io.github.mk3core.coresms.data.Conversation
 import io.github.mk3core.coresms.data.Conversations
 import io.github.mk3core.coresms.data.MessageChanges
 import io.github.mk3core.coresms.data.Prefs
+import io.github.mk3core.coresms.data.SearchIndex
 import io.github.mk3core.coresms.data.SelfNumbers
 import io.github.mk3core.coresms.mms.IncomingMms
 import io.github.mk3core.coresms.mms.MmsRecovery
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
     private var missingPermissions by mutableStateOf(emptyList<String>())
     private var numberUnknown by mutableStateOf(false)
     private var conversations by mutableStateOf(emptyList<Conversation>())
+    private var messageSearch by mutableStateOf(false)
 
     /**
      * Conversations that were on the first screen when you opened one. They
@@ -96,6 +98,7 @@ class MainActivity : ComponentActivity() {
                         sections = sections(),
                         showPermissionBanner = missingPermissions.isNotEmpty(),
                         showNumberBanner = numberUnknown && missingPermissions.isEmpty(),
+                        messageSearch = messageSearch,
                         actions = ListActions(
                             onOpen = ::openThread,
                             onNew = { startActivity(Intent(this, ComposeActivity::class.java)) },
@@ -122,6 +125,12 @@ class MainActivity : ComponentActivity() {
                             },
                             onFixPermissions = ::requestMissingPermissions,
                             onAddNumber = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                            onSearchMessages = { query ->
+                                withContext(Dispatchers.IO) { SearchIndex.search(applicationContext, query) }
+                            },
+                            onOpenMessage = { hit ->
+                                startActivity(ThreadActivity.intent(this, hit.threadId, focus = hit))
+                            },
                         ),
                     )
                 }
@@ -132,6 +141,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         openingThread = false
+        messageSearch = Prefs.searchMessages(this)
         refreshSetup()
     }
 

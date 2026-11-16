@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    allowBackup="false" already stops cloud backups, but on Android 12 and
+    later it doesn't stop phone-to-phone transfers. The message search index
+    (no_backup/search.db) is never copied; a new phone rebuilds it.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="no_backup/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="no_backup/" />
+    </device-transfer>
+</data-extraction-rules>

@@ -84,6 +84,16 @@ object Messages {
         return Page(all.takeLast(limit), hasOlder)
     }
 
+    /** How many messages in a thread are from [dateMillis] or later, to load enough to show one of them. */
+    fun countSince(context: Context, threadId: Long, dateMillis: Long): Int {
+        fun count(uri: Uri, date: Long): Int = runCatching {
+            context.contentResolver.query(uri, arrayOf("_id"), "thread_id = ? AND date >= ?", arrayOf(threadId.toString(), date.toString()), null)
+                ?.use { it.count } ?: 0
+        }.getOrDefault(0)
+        // MMS dates are in seconds.
+        return count(Sms.CONTENT_URI, dateMillis) + count(Mms.CONTENT_URI, dateMillis / 1000)
+    }
+
     /** Unread incoming messages in a thread, oldest first, for notifications. */
     fun unread(context: Context, threadId: Long): List<Message> {
         val unreadSms = unreadIds(context, threadId, mms = false)

@@ -91,6 +91,13 @@ object Prefs {
         prefs(context).edit { putString(KEY_THEME, style) }
     }
 
+    /** Whether search looks inside every message, which needs the word index (see SearchIndex). */
+    fun searchMessages(context: Context): Boolean = prefs(context).getBoolean(KEY_SEARCH_MESSAGES, true)
+
+    fun setSearchMessages(context: Context, on: Boolean) {
+        prefs(context).edit { putBoolean(KEY_SEARCH_MESSAGES, on) }
+    }
+
     fun clearMmsState(context: Context, messageId: Long) {
         prefs(context).edit {
             remove(KEY_MMS_ERROR_PREFIX + messageId)
@@ -103,6 +110,7 @@ object Prefs {
     private const val KEY_MMS_ATTEMPT_PREFIX = "mms_attempt_"
     private const val KEY_THEME = "theme_style"
     private const val KEY_RECENT_FACES = "recent_faces"
+    private const val KEY_SEARCH_MESSAGES = "search_messages"
     private const val FACE_SEPARATOR = "\u0001"
 
     // "v2": marks made before v0.3.2 came from requesting the wrong link

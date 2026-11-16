@@ -73,8 +73,10 @@ a delay on our side.
 
 - **Video compression.** Videos larger than the carrier's MMS limit are
   refused with a message. Media3 Transformer could re-encode them smaller.
-- **Search** covers conversation names and the latest message only, not
-  every message.
+- **Message search** is word-based: it finds words and word starts, not
+  exact phrases or text in the middle of a word, and it ignores emoji.
+  Messages deleted by another app leave the index the next time CoreSMS
+  runs.
 - **Delivery and read reports** aren't requested or shown.
 - **Swipe actions** on conversations (DESIGN.md) aren't built; long-press
   covers pin, read/unread and delete for now.
