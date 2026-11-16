@@ -64,6 +64,13 @@ import androidx.compose.ui.unit.sp
 import io.github.mk3core.coresms.R
 import io.github.mk3core.coresms.data.Conversation
 import io.github.mk3core.coresms.data.MessageHit
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import io.github.mk3core.coresms.data.Words
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.SpanStyle
@@ -104,8 +111,16 @@ fun ConversationListScreen(
     messageSearch: Boolean,
     actions: ListActions,
 ) {
-    var searching by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val keyboard = LocalSoftwareKeyboardController.current
+    fun closeSearch() {
+        keyboard?.hide()
+        searching = false
+        query = ""
+    }
+    // Back (button or gesture) leaves search for the conversation list, not the app.
+    BackHandler(enabled = searching) { closeSearch() }
     var confirmDelete by remember { mutableStateOf<Conversation?>(null) }
 
     Scaffold(
@@ -115,7 +130,7 @@ fun ConversationListScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 navigationIcon = {
                     if (searching) {
-                        IconButton(onClick = { searching = false; query = "" }) {
+                        IconButton(onClick = ::closeSearch) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                         }
                     }
@@ -409,7 +424,13 @@ private fun SearchResults(
     }
     // Messages from conversations that have since been deleted are left out.
     val shown = hits.filter { it.threadId in byThread }
-    LazyColumn(modifier.fillMaxSize()) {
+    // Scrolling through results puts the keyboard away.
+    val listState = rememberLazyListState()
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) keyboard?.hide()
+    }
+    LazyColumn(modifier.fillMaxSize(), state = listState) {
         if (conversations.isNotEmpty() && shown.isNotEmpty()) item(key = "h-conv") { SectionHeader(stringResource(R.string.search_section_conversations)) }
         items(conversations, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
         if (shown.isNotEmpty()) {
@@ -484,19 +505,28 @@ private fun MessageHitRow(hit: MessageHit, conversation: Conversation, query: St
 
 @Composable
 private fun SearchField(query: String, messageSearch: Boolean, onChange: (String) -> Unit) {
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // Ready to type as soon as search opens.
+    LaunchedEffect(Unit) {
+        focus.requestFocus()
+        keyboard?.show()
+    }
     TextField(
         value = query,
         onValueChange = onChange,
         placeholder = { Text(stringResource(if (messageSearch) R.string.search_hint_messages else R.string.search_hint)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        // The keyboard's search key tucks the keyboard away to show the results.
+        keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
         ),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().focusRequester(focus),
     )
 }
 
