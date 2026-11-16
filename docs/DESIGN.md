@@ -76,9 +76,9 @@ idea is still open.
 - Every message shows its time: under the bubble, or after the sender's
   name above it in a group. Tapping a message opens only the reactions; tap and hold opens Copy, Save,
   Details, Delete and the rest, so a quick tap can't trigger them.
-  Photos and videos work the same, plus double-tap to open full screen
-  (pinch to zoom, Save, Share), using Android's standard 300ms double-tap
-  window. Text bubbles have no double-tap, so their tap stays instant.
+  Photos and videos work the same; their hold menu has View (instead of
+  Copy) to open them full screen with Save and Share. Double-tap to open
+  was tried and dropped: every single tap had to wait 300ms for it.
   Reactions are a quiet line under the message listing each emoji and who
   sent it, always visible; there's no badge on the bubble's corner.
 - Two themes, chosen in Settings:

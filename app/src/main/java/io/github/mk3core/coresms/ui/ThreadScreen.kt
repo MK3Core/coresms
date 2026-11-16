@@ -545,9 +545,9 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape, actions: 
 }
 
 /**
- * Photos and videos: tap reacts like any message, double-tap opens full screen
- * (pinch to zoom, Save, Share), tap and hold opens the message menu. Other
- * attachments (audio, contact cards, files) open on a single tap.
+ * Photos and videos: tap reacts like any message; tap and hold opens the
+ * message menu, whose View opens them full screen (pinch to zoom, Save,
+ * Share). Other attachments (audio, contact cards, files) open on a tap.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -557,7 +557,7 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, gestures: 
         attachment.isImage || attachment.isVideo -> Box(
             Modifier
                 .clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius))
-                .combinedClickable(onClick = gestures.onTap, onDoubleClick = onOpen, onLongClick = gestures.onHold),
+                .combinedClickable(onClick = gestures.onTap, onLongClick = gestures.onHold),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -629,11 +629,7 @@ private fun MediaGrid(items: List<Attachment>, gestures: Gestures, onOpen: (Atta
                             .weight(1f)
                             .aspectRatio(1f)
                             .background(chat.incomingBubble)
-                            .combinedClickable(
-                                onClick = gestures.onTap,
-                                onDoubleClick = { onOpen(attachment) },
-                                onLongClick = gestures.onHold,
-                            ),
+                            .combinedClickable(onClick = gestures.onTap, onLongClick = gestures.onHold),
                         contentAlignment = Alignment.Center,
                     ) {
                         AsyncImage(
@@ -705,28 +701,16 @@ private fun ReactionMenu(message: Message, open: Boolean, onDismiss: () -> Unit,
 /** Tap and hold: copy, save, details, delete and the rest, kept apart from reactions. */
 @Composable
 private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, actions: ThreadActions) {
-    val context = LocalContext.current
     DropdownMenu(expanded = open, onDismissRequest = onDismiss) {
+        // Save and Share live in the full-screen viewer.
+        message.attachments.firstOrNull { it.isImage || it.isVideo }?.let { attachment ->
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.view)) },
+                onClick = { onDismiss(); actions.onOpenAttachment(attachment) },
+            )
+        }
         if (message.body.isNotEmpty()) {
             DropdownMenuItem(text = { Text(stringResource(R.string.copy)) }, onClick = { onDismiss(); actions.onCopy(message) })
-        }
-        message.attachments.firstOrNull()?.let { attachment ->
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.save)) },
-                onClick = {
-                    onDismiss()
-                    val saved = message.attachments.map { io.github.mk3core.coresms.AttachmentFiles.saveToDevice(context, it) }.all { it }
-                    android.widget.Toast.makeText(
-                        context,
-                        if (saved) R.string.saved else R.string.save_failed,
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.share)) },
-                onClick = { onDismiss(); io.github.mk3core.coresms.AttachmentFiles.share(context, attachment) },
-            )
         }
         if (message.status == MessageStatus.Failed || message.pending?.canRetry == true) {
             DropdownMenuItem(text = { Text(stringResource(R.string.retry)) }, onClick = { onDismiss(); actions.onRetry(message) })
