@@ -100,6 +100,15 @@ idea is still open.
     theirs, white background in light mode and true black in dark mode.
   Wallpaper colors (Material You) aren't used.
 - One to three emoji with no text are shown large, without a bubble.
+- A message containing a verification code or a US street address gets a
+  small **Copy 482913** / **Copy address** button under it. Codes need a
+  word like "code" or "verify" nearby and skip prices, phone numbers, times
+  and years in dates; addresses need a house number, street name and street
+  type. Copied codes are marked sensitive so Android hides them in the
+  clipboard preview. Tuned against a real message history: every code and
+  address found, no false ones.
+- Popup menus in Slick are true black with the same thin outline as
+  incoming bubbles, instead of Material's raised gray.
 - Opening a conversation with unread messages puts a thin **New messages**
   line above the oldest one, about three quarters of the way up the screen,
   so the new ones read downward from it. Messages count as read only after

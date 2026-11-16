@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -358,7 +357,7 @@ private fun WithMenu(conversation: Conversation, menu: RowMenu, content: @Compos
                 onLongClick = { open = true },
             ),
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        ChatMenu(open, onDismiss = { open = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(if (conversation.pinned) R.string.unpin else R.string.pin)) },
                 onClick = { open = false; menu.actions.onTogglePin(conversation) },

@@ -121,6 +121,7 @@ class ThreadActivity : ComponentActivity() {
                         onRetry = ::retry,
                         onReact = ::react,
                         onCopy = ::copy,
+                        onCopyText = ::copyText,
                         onDelete = { message ->
                             lifecycleScope.launch(Dispatchers.IO) { Messages.delete(applicationContext, message) }
                         },
@@ -320,6 +321,17 @@ class ThreadActivity : ComponentActivity() {
     private fun copy(message: Message) {
         getSystemService(ClipboardManager::class.java)
             .setPrimaryClip(ClipData.newPlainText(getString(R.string.app_name), message.body))
+    }
+
+    private fun copyText(text: String, sensitive: Boolean) {
+        val clip = ClipData.newPlainText(getString(R.string.app_name), text)
+        // Keeps a code out of the clipboard preview and keyboard suggestions.
+        if (sensitive) {
+            clip.description.extras = android.os.PersistableBundle().apply {
+                putBoolean("android.content.extra.IS_SENSITIVE", true)
+            }
+        }
+        getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
     }
 
     private fun openAttachment(attachment: Attachment) {

@@ -1,5 +1,9 @@
 package io.github.mk3core.coresms.ui
 
+import io.github.mk3core.coresms.data.QuickCopy
+import io.github.mk3core.coresms.data.CopyTarget
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.BorderStroke
 import android.text.format.Formatter
 import android.util.Patterns
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -140,6 +144,8 @@ class ThreadActions(
     val onRetry: (Message) -> Unit,
     val onReact: (Message, String) -> Unit,
     val onCopy: (Message) -> Unit,
+    /** Quick copy of a code or address found in a message; codes are marked sensitive. */
+    val onCopyText: (String, Boolean) -> Unit,
     val onDelete: (Message) -> Unit,
     val onCall: (String) -> Unit,
     val onLoadOlder: () -> Unit,
@@ -161,6 +167,7 @@ data class MessageDetails(
 private const val GROUP_GAP_MS = 3 * 60 * 1000L
 private const val DIVIDER_GAP_MS = 60 * 60 * 1000L
 private const val READ_AFTER_MS = 500L
+private const val COPIED_MS = 1500L
 /** Where the "New messages" line lands when a conversation opens: 3/4 of the way up. */
 private const val UNREAD_LINE_FROM_BOTTOM = 0.75f
 
@@ -484,6 +491,10 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
         if (message.reactions.isNotEmpty()) {
             ReactionLine(message, people, Modifier.padding(start = indent + 6.dp, end = 6.dp, top = 3.dp))
         }
+        val copyTargets = remember(message.body) { QuickCopy.find(message.body) }
+        if (copyTargets.isNotEmpty()) {
+            QuickCopyRow(copyTargets, actions, Modifier.padding(start = indent + 4.dp, end = 4.dp, top = 4.dp))
+        }
         val below = when {
             message.status == MessageStatus.Failed ->
                 stringResource(R.string.thread_failed) + (message.error?.let { " · $it" } ?: "")
@@ -769,6 +780,62 @@ private fun ReactionLine(message: Message, people: List<Contact>, modifier: Modi
 
 private fun canReact(message: Message) = message.pending == null && message.status != MessageStatus.Failed
 
+/** A popup menu that matches the theme: true black with a thin outline in Slick. */
+@Composable
+internal fun ChatMenu(open: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val style = LocalChatStyle.current
+    if (style.retro) {
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = onDismiss,
+            shape = RoundedCornerShape(style.bubbleRadius),
+            containerColor = Color.Black,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+            border = BorderStroke(1.dp, LocalChatColors.current.bubbleOutline),
+            content = content,
+        )
+    } else {
+        DropdownMenu(expanded = open, onDismissRequest = onDismiss, content = content)
+    }
+}
+
+/** Small buttons under a message to copy a code or address in it with one tap. */
+@Composable
+private fun QuickCopyRow(targets: List<CopyTarget>, actions: ThreadActions, modifier: Modifier) {
+    val chat = LocalChatColors.current
+    val shape = LocalChatStyle.current.roundShape
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        targets.forEach { target ->
+            var copied by remember(target) { mutableStateOf(false) }
+            LaunchedEffect(copied) {
+                if (copied) {
+                    delay(COPIED_MS)
+                    copied = false
+                }
+            }
+            val label = when {
+                copied -> stringResource(R.string.quick_copy_done)
+                target.kind == CopyTarget.Kind.Code -> stringResource(R.string.quick_copy_code, target.text)
+                else -> stringResource(R.string.quick_copy_address)
+            }
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = chat.subtle,
+                modifier = Modifier
+                    .clip(shape)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                    .clickable {
+                        actions.onCopyText(target.text, target.kind == CopyTarget.Kind.Code)
+                        copied = true
+                    }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
+
 /** Tap and hold: the reactions, and Actions… for copy, details and delete one step further away. */
 @Composable
 private fun ReactionMenu(
@@ -778,7 +845,7 @@ private fun ReactionMenu(
     onMoreActions: () -> Unit,
     actions: ThreadActions,
 ) {
-    DropdownMenu(expanded = open, onDismissRequest = onDismiss) {
+    ChatMenu(open, onDismiss) {
         if (canReact(message)) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                 (Reactions.QUICK + listOf("🔥", "🙏")).forEach { emoji ->
@@ -801,7 +868,7 @@ private fun ReactionMenu(
 /** Actions…: view, copy, details, delete and the rest, kept apart from reactions. */
 @Composable
 private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, actions: ThreadActions) {
-    DropdownMenu(expanded = open, onDismissRequest = onDismiss) {
+    ChatMenu(open, onDismiss) {
         // Save and Share live in the full-screen viewer.
         message.attachments.firstOrNull { it.isImage || it.isVideo }?.let { attachment ->
             DropdownMenuItem(
