@@ -37,6 +37,7 @@
     <string name="thread_sending">Sending…</string>
     <string name="thread_sent">Sent</string>
     <string name="thread_failed">Not sent · tap to retry</string>
+    <string name="thread_unread_divider">New messages</string>
     <string name="thread_error_no_recipients">This conversation has no recipients.</string>
     <string name="thread_error_too_large">%1$s is too big for MMS (your carrier allows about %2$d KB). Try a shorter video.</string>
     <string name="composer_hint_sms">Text message</string>

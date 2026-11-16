@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,6 +60,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.HorizontalDivider
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -109,6 +114,9 @@ data class ThreadState(
     val error: String?,
     val details: MessageDetails? = null,
     val resendFor: Message? = null,
+    val hasUnread: Boolean = false,
+    /** The screen is in front, so reaching the bottom counts as reading. */
+    val resumed: Boolean = true,
 ) {
     val isGroup get() = people.size > 1
     val title: String
@@ -140,6 +148,8 @@ class ThreadActions(
     val onAskResend: (Message) -> Unit,
     val onConfirmResend: (Message) -> Unit,
     val onCancelResend: () -> Unit,
+    /** The newest message has been on screen long enough: mark the conversation read. */
+    val onCaughtUp: () -> Unit,
 )
 
 /** What the Details dialog shows for one message. */
@@ -150,6 +160,9 @@ data class MessageDetails(
 
 private const val GROUP_GAP_MS = 3 * 60 * 1000L
 private const val DIVIDER_GAP_MS = 60 * 60 * 1000L
+private const val READ_AFTER_MS = 500L
+/** Where the "New messages" line lands when a conversation opens: 3/4 of the way up. */
+private const val UNREAD_LINE_FROM_BOTTOM = 0.75f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -315,12 +328,44 @@ private fun MessageList(state: ThreadState, actions: ThreadActions, modifier: Mo
     LaunchedEffect(nearTop, state.hasOlder, placements.size) {
         if (nearTop && state.hasOlder) actions.onLoadOlder()
     }
-    // Snap to the newest message whenever one is sent or arrives (or a picture
-    // message finishes downloading). Loading older history doesn't change the
-    // newest message, so it never yanks you down while scrolling back.
+    // The "New messages" line sits above the oldest unread message. It's placed
+    // when the conversation opens, or when something arrives while you're scrolled
+    // up, and goes away once everything is read.
+    var unreadKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var positioned by rememberSaveable { mutableStateOf(false) }
+    var lastNewest by rememberSaveable { mutableStateOf<String?>(null) }
+    val oldestUnread = state.messages.firstOrNull { it.incoming && !it.read }?.key
     val newestKey = placements.firstOrNull()?.message?.key
-    LaunchedEffect(newestKey) {
-        if (newestKey != null) listState.scrollToItem(0)
+    LaunchedEffect(newestKey, oldestUnread) {
+        if (newestKey == null) return@LaunchedEffect
+        if (oldestUnread == null) unreadKey = null
+        if (!positioned) {
+            positioned = true
+            lastNewest = newestKey
+            unreadKey = oldestUnread
+            val index = placements.indexOfFirst { it.message.key == oldestUnread }
+            if (index >= 0) listState.scrollToUnread(index) else listState.scrollToItem(0)
+            return@LaunchedEffect
+        }
+        // Anything new pushes the old bottom up by an item or two.
+        val nearBottom = listState.firstVisibleItemIndex <= 2
+        if (oldestUnread != null && unreadKey == null && !nearBottom) unreadKey = oldestUnread
+        if (newestKey != lastNewest) {
+            lastNewest = newestKey
+            // Follow along if you were at the bottom or just sent it; otherwise
+            // leave you where you're reading.
+            if (nearBottom || placements.first().message.incoming.not()) listState.scrollToItem(0)
+        }
+    }
+    // Sitting at the newest message for half a second means you've seen it all.
+    val atBottom by remember {
+        derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0 }
+    }
+    LaunchedEffect(atBottom, state.hasUnread, state.resumed, positioned) {
+        if (atBottom && state.hasUnread && state.resumed && positioned) {
+            delay(READ_AFTER_MS)
+            actions.onCaughtUp()
+        }
     }
     LazyColumn(
         state = listState,
@@ -330,10 +375,42 @@ private fun MessageList(state: ThreadState, actions: ThreadActions, modifier: Mo
     ) {
         items(placements, key = { it.message.key }) { placement ->
             Column {
+                if (placement.message.key == unreadKey) UnreadDivider()
                 if (placement.divider) TimeDivider(placement.message.date)
                 MessageRow(placement, state.isGroup, peopleByAddress, actions)
             }
         }
+    }
+}
+
+/**
+ * Scrolls so the item at [index] (the oldest unread message, with the
+ * "New messages" line on top) sits about a quarter of the way down the screen,
+ * leaving the new messages below it to read downward.
+ */
+private suspend fun LazyListState.scrollToUnread(index: Int) {
+    scrollToItem(index)
+    val item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index } ?: return
+    val viewport = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+    // The list is reversed: scrolling backward reveals newer messages below.
+    scrollBy(-(viewport * UNREAD_LINE_FROM_BOTTOM - item.size))
+}
+
+@Composable
+private fun UnreadDivider() {
+    val chat = LocalChatColors.current
+    Row(
+        Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalDivider(Modifier.weight(1f), thickness = 1.dp, color = chat.subtle.copy(alpha = 0.45f))
+        Text(
+            stringResource(R.string.thread_unread_divider),
+            style = MaterialTheme.typography.labelSmall,
+            color = chat.subtle,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        )
+        HorizontalDivider(Modifier.weight(1f), thickness = 1.dp, color = chat.subtle.copy(alpha = 0.45f))
     }
 }
 

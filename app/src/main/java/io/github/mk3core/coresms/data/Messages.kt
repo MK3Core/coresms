@@ -62,6 +62,8 @@ data class Message(
     val pending: PendingDownload? = null,
     val error: String? = null,
     val reactions: List<Reaction> = emptyList(),
+    /** False for an incoming message nobody has looked at yet. */
+    val read: Boolean = true,
 ) {
     val key: String get() = (if (isMms) "m" else "s") + id
 }
@@ -112,7 +114,7 @@ object Messages {
         runCatching {
             context.contentResolver.query(
                 Sms.CONTENT_URI,
-                arrayOf(Sms._ID, Sms.ADDRESS, Sms.BODY, Sms.DATE, Sms.TYPE, Sms.SUBSCRIPTION_ID),
+                arrayOf(Sms._ID, Sms.ADDRESS, Sms.BODY, Sms.DATE, Sms.TYPE, Sms.SUBSCRIPTION_ID, Sms.READ),
                 "${Sms.THREAD_ID} = ?",
                 arrayOf(threadId.toString()),
                 "${Sms.DATE} DESC",
@@ -136,6 +138,7 @@ object Messages {
                             else -> MessageStatus.Sent
                         },
                         subId = cursor.getInt(5),
+                        read = !incoming || cursor.getInt(6) != 0,
                     )
                 }
             }
@@ -146,13 +149,13 @@ object Messages {
     private fun loadMms(context: Context, threadId: Long, limit: Int): List<Message> {
         data class Row(
             val id: Long, val date: Long, val box: Int, val type: Int, val status: Int,
-            val size: Long, val expiry: Long, val subId: Int,
+            val size: Long, val expiry: Long, val subId: Int, val read: Boolean,
         )
         val rows = mutableListOf<Row>()
         runCatching {
             context.contentResolver.query(
                 Mms.CONTENT_URI,
-                arrayOf(Mms._ID, Mms.DATE, Mms.MESSAGE_BOX, Mms.MESSAGE_TYPE, Mms.STATUS, Mms.MESSAGE_SIZE, Mms.EXPIRY, Mms.SUBSCRIPTION_ID),
+                arrayOf(Mms._ID, Mms.DATE, Mms.MESSAGE_BOX, Mms.MESSAGE_TYPE, Mms.STATUS, Mms.MESSAGE_SIZE, Mms.EXPIRY, Mms.SUBSCRIPTION_ID, Mms.READ),
                 "${Mms.THREAD_ID} = ?",
                 arrayOf(threadId.toString()),
                 "${Mms.DATE} DESC",
@@ -160,7 +163,7 @@ object Messages {
                 while (cursor.moveToNext() && rows.size < limit) {
                     rows += Row(
                         cursor.getLong(0), cursor.getLong(1) * 1000, cursor.getInt(2), cursor.getInt(3),
-                        cursor.getInt(4), cursor.getLong(5), cursor.getLong(6), cursor.getInt(7),
+                        cursor.getInt(4), cursor.getLong(5), cursor.getLong(6), cursor.getInt(7), cursor.getInt(8) != 0,
                     )
                 }
             }
@@ -210,6 +213,7 @@ object Messages {
                 subId = row.subId,
                 pending = pending,
                 error = if (row.box == Mms.MESSAGE_BOX_FAILED) Prefs.mmsError(context, row.id) else null,
+                read = !incoming || row.read,
             )
         }
     }

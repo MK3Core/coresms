@@ -100,6 +100,13 @@ idea is still open.
     theirs, white background in light mode and true black in dark mode.
   Wallpaper colors (Material You) aren't used.
 - One to three emoji with no text are shown large, without a bubble.
+- Opening a conversation with unread messages puts a thin **New messages**
+  line above the oldest one, about three quarters of the way up the screen,
+  so the new ones read downward from it. Messages count as read only after
+  the list has sat at the newest message for 500ms, which also removes the
+  line; leaving earlier keeps the conversation unread. A message arriving
+  while you're scrolled up gets the line instead of pulling you down; you're
+  only moved to the bottom if you were already there or sent it yourself.
 
 ## Open questions
 

@@ -62,6 +62,9 @@ class ThreadActivity : ComponentActivity() {
     private var error by mutableStateOf<String?>(null)
     private var details by mutableStateOf<MessageDetails?>(null)
     private var resendFor by mutableStateOf<Message?>(null)
+    /** Any unread incoming message, including reactions folded into other messages. */
+    private var hasUnread by mutableStateOf(false)
+    private var resumed by mutableStateOf(false)
 
     private val pickMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         if (uris.isNotEmpty()) attachments = (attachments + uris).distinct().take(10)
@@ -98,6 +101,8 @@ class ThreadActivity : ComponentActivity() {
                         error = error,
                         details = details,
                         resendFor = resendFor,
+                        hasUnread = hasUnread,
+                        resumed = resumed,
                     ),
                     actions = ThreadActions(
                         onBack = ::finish,
@@ -126,6 +131,9 @@ class ThreadActivity : ComponentActivity() {
                         onAskResend = { resendFor = it },
                         onConfirmResend = ::askToResend,
                         onCancelResend = { resendFor = null },
+                        onCaughtUp = {
+                            lifecycleScope.launch(Dispatchers.IO) { Conversations.markRead(applicationContext, threadId) }
+                        },
                     ),
                 )
             }
@@ -153,11 +161,13 @@ class ThreadActivity : ComponentActivity() {
         super.onResume()
         Notifications.visibleThreadId = threadId
         Notifications.cancel(this, threadId)
-        lifecycleScope.launch(Dispatchers.IO) { Conversations.markRead(applicationContext, threadId) }
+        // Messages count as read once the list sits at the newest one (see onCaughtUp).
+        resumed = true
     }
 
     override fun onPause() {
         super.onPause()
+        resumed = false
         if (Notifications.visibleThreadId == threadId) Notifications.visibleThreadId = -1
     }
 
@@ -176,10 +186,8 @@ class ThreadActivity : ComponentActivity() {
         people = loadedPeople
         messages = loadedMessages
         hasOlder = page.hasOlder
+        hasUnread = page.messages.any { it.incoming && !it.read }
         loaded = true
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && loadedMessages.any { it.incoming }) {
-            withContext(Dispatchers.IO) { Conversations.markRead(context, threadId) }
-        }
     }
 
     private fun recipients() = people.map { it.address }
