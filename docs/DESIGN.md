@@ -76,10 +76,13 @@ idea is still open.
 - Every message shows its time: under the bubble, or after the sender's
   name above it in a group. Tapping a message opens only the reactions; tap and hold opens Copy, Save,
   Details, Delete and the rest, so a quick tap can't trigger them.
+  Photos and videos work the same, plus double-tap to open full screen
+  (pinch to zoom, Save, Share), using Android's standard 300ms double-tap
+  window. Text bubbles have no double-tap, so their tap stays instant.
   Reactions are a quiet line under the message listing each emoji and who
   sent it, always visible; there's no badge on the bubble's corner.
 - Two themes, chosen in Settings:
-  - **Boringer** (internally "Retro", the default): monospace text, white on true black, with
+  - **Slick** (internally "Retro", the default): monospace text, white on true black, with
     color only where it means something (red for failures). Your messages
     sit on dark gray, theirs in a thin outline. No circles: avatars are
     initials as text like `CC` (`#` for an unnamed number, `CA+` for a group), the

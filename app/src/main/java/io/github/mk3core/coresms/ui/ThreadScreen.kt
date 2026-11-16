@@ -369,20 +369,19 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                 Spacer(Modifier.width(8.dp))
             }
             Box {
-                Box(
-                    Modifier.combinedClickable(
-                        onClick = {
-                            when {
-                                message.pending != null && message.pending.canRetry -> actions.onRetry(message)
-                                message.status == MessageStatus.Failed -> actions.onRetry(message)
-                                canReact(message) -> reactOpen = true
-                                else -> menuOpen = true
-                            }
-                        },
-                        onLongClick = { menuOpen = true },
-                    ),
-                ) {
-                    BubbleContent(message, placement, actions)
+                val gestures = Gestures(
+                    onTap = {
+                        when {
+                            message.pending != null && message.pending.canRetry -> actions.onRetry(message)
+                            message.status == MessageStatus.Failed -> actions.onRetry(message)
+                            canReact(message) -> reactOpen = true
+                            else -> menuOpen = true
+                        }
+                    },
+                    onHold = { menuOpen = true },
+                )
+                Box(Modifier.combinedClickable(onClick = gestures.onTap, onLongClick = gestures.onHold)) {
+                    BubbleContent(message, placement, actions, gestures)
                 }
                 ReactionMenu(message, reactOpen, onDismiss = { reactOpen = false }, actions)
                 MessageMenu(message, menuOpen, onDismiss = { menuOpen = false }, actions)
@@ -410,8 +409,11 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
     }
 }
 
+/** What a tap and a tap-and-hold do on a message, shared by its bubble and its photos. */
+private class Gestures(val onTap: () -> Unit, val onHold: () -> Unit)
+
 @Composable
-private fun BubbleContent(message: Message, placement: Placement, actions: ThreadActions) {
+private fun BubbleContent(message: Message, placement: Placement, actions: ThreadActions, gestures: Gestures) {
     val chat = LocalChatColors.current
     val outgoing = !message.incoming
     val style = LocalChatStyle.current
@@ -456,12 +458,12 @@ private fun BubbleContent(message: Message, placement: Placement, actions: Threa
         message.pending?.let { PendingBubble(message, shape, actions) }
         val visual = message.attachments.filter { it.isImage || it.isVideo }
         if (visual.size > 1) {
-            MediaGrid(visual, onOpen = actions.onOpenAttachment)
+            MediaGrid(visual, gestures, onOpen = actions.onOpenAttachment)
         } else {
-            visual.forEach { AttachmentView(it, outgoing, onOpen = { actions.onOpenAttachment(it) }) }
+            visual.forEach { AttachmentView(it, outgoing, gestures, onOpen = { actions.onOpenAttachment(it) }) }
         }
         message.attachments.filterNot { it.isImage || it.isVideo }.forEach { attachment ->
-            AttachmentView(attachment, outgoing, onOpen = { actions.onOpenAttachment(attachment) })
+            AttachmentView(attachment, outgoing, gestures, onOpen = { actions.onOpenAttachment(attachment) })
         }
         val body = message.body
         if (body.isNotEmpty()) {
@@ -542,14 +544,20 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape, actions: 
     }
 }
 
+/**
+ * Photos and videos: tap reacts like any message, double-tap opens full screen
+ * (pinch to zoom, Save, Share), tap and hold opens the message menu. Other
+ * attachments (audio, contact cards, files) open on a single tap.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AttachmentView(attachment: Attachment, outgoing: Boolean, onOpen: () -> Unit) {
+private fun AttachmentView(attachment: Attachment, outgoing: Boolean, gestures: Gestures, onOpen: () -> Unit) {
     val chat = LocalChatColors.current
     when {
         attachment.isImage || attachment.isVideo -> Box(
             Modifier
                 .clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius))
-                .clickable(onClick = onOpen),
+                .combinedClickable(onClick = gestures.onTap, onDoubleClick = onOpen, onLongClick = gestures.onHold),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -574,7 +582,7 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, onOpen: ()
             Modifier
                 .clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius))
                 .background(if (outgoing) chat.outgoingBubble else chat.incomingBubble)
-                .clickable(onClick = onOpen)
+                .combinedClickable(onClick = onOpen, onLongClick = gestures.onHold)
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -605,8 +613,9 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, onOpen: ()
 }
 
 /** Two or more photos/videos in one message, as a tidy grid of square tiles. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaGrid(items: List<Attachment>, onOpen: (Attachment) -> Unit) {
+private fun MediaGrid(items: List<Attachment>, gestures: Gestures, onOpen: (Attachment) -> Unit) {
     val chat = LocalChatColors.current
     Column(
         Modifier.width(250.dp).clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius)),
@@ -620,7 +629,11 @@ private fun MediaGrid(items: List<Attachment>, onOpen: (Attachment) -> Unit) {
                             .weight(1f)
                             .aspectRatio(1f)
                             .background(chat.incomingBubble)
-                            .clickable { onOpen(attachment) },
+                            .combinedClickable(
+                                onClick = gestures.onTap,
+                                onDoubleClick = { onOpen(attachment) },
+                                onLongClick = gestures.onHold,
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         AsyncImage(

@@ -140,7 +140,7 @@
     <string name="reactions_you">You</string>
     <string name="reactions_someone">Someone</string>
     <string name="settings_theme">Theme</string>
-    <string name="settings_theme_retro">Boringer</string>
+    <string name="settings_theme_retro">Slick</string>
     <string name="settings_theme_retro_body">Monospace text, white on black</string>
     <string name="settings_theme_modern">Boring</string>
     <string name="settings_theme_modern_body">Rounded bubbles in blue, follows light and dark mode</string>
