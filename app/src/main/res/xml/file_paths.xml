@@ -4,4 +4,6 @@
     <cache-path name="mms" path="mms/" />
     <!-- Copies of attachments being shared or opened in other apps -->
     <cache-path name="shared" path="shared/" />
+    <!-- GIFs picked from GIPHY, until they are sent -->
+    <cache-path name="gifs" path="gifs/" />
 </paths>
