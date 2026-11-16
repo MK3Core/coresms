@@ -1,5 +1,6 @@
 package io.github.mk3core.coresms.mms
 
+import io.github.mk3core.coresms.data.SearchIndex
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -135,6 +136,7 @@ object MmsStore {
         insertAddress(context, id, ADDR_FROM, conf.from ?: EncodedStringValue(from))
         conf.to?.forEach { it?.let { insertAddress(context, id, ADDR_TO, it) } }
         conf.cc?.forEach { it?.let { insertAddress(context, id, ADDR_CC, it) } }
+        SearchIndex.refreshMms(id)
         return id
     }
 
@@ -160,6 +162,7 @@ object MmsStore {
         persistParts(context, id, req)
         recipients.forEach { insertAddress(context, id, ADDR_TO, EncodedStringValue(it)) }
         insertAddress(context, id, ADDR_FROM, EncodedStringValue(PduHeaders.FROM_INSERT_ADDRESS_TOKEN_STR))
+        SearchIndex.refreshMms(id)
         return id
     }
 

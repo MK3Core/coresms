@@ -26,6 +26,10 @@
     <string name="search_no_results">No results</string>
     <string name="settings_search">Search inside messages</string>
     <string name="settings_search_on_body">Search finds words in any message. To do that, CoreSMS keeps a list of the words in each message, in alphabetical order, on this phone only. It isn\'t backed up or sent anywhere. Turn this off to delete it.</string>
+    <plurals name="settings_search_indexed">
+        <item quantity="one">%1$d message indexed</item>
+        <item quantity="other">%1$d messages indexed</item>
+    </plurals>
     <string name="settings_search_off_body">Search covers conversation names and their latest messages only. Turn this on to search every message.</string>
     <string name="settings">Settings</string>
     <string name="pin">Pin</string>

@@ -168,6 +168,11 @@ private fun SearchSetting() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var on by remember { mutableStateOf(Prefs.searchMessages(context)) }
+    var indexed by remember { mutableStateOf<Int?>(null) }
+    androidx.compose.runtime.LaunchedEffect(on) {
+        indexed = null
+        if (on) indexed = SearchIndex.count(context.applicationContext)
+    }
     fun set(value: Boolean) {
         on = value
         Prefs.setSearchMessages(context, value)
@@ -192,6 +197,14 @@ private fun SearchSetting() {
                 style = MaterialTheme.typography.bodyMedium,
                 color = LocalChatColors.current.subtle,
             )
+            indexed?.let {
+                Text(
+                    androidx.compose.ui.res.pluralStringResource(R.plurals.settings_search_indexed, it, it),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LocalChatColors.current.subtle,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
         Spacer(Modifier.width(16.dp))
         Switch(checked = on, onCheckedChange = null)

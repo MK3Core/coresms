@@ -14,6 +14,7 @@ import io.github.mk3core.coresms.reactions.Reactions
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.exp
@@ -65,6 +66,9 @@ object SearchIndex {
     private val lock = Mutex()
     private var helper: Helper? = null
 
+    /** MMS whose text was saved after they may have been indexed; indexed again on the next sync. */
+    private val stale = ConcurrentHashMap.newKeySet<Long>()
+
     fun enabled(context: Context): Boolean = Prefs.searchMessages(context)
 
     /**
@@ -75,8 +79,30 @@ object SearchIndex {
         if (!enabled(context) || !DefaultSmsApp.isDefault(context)) return
         lock.withLock {
             if (!enabled(context)) return
+            // The error never includes message text: words are bound, not part of the SQL.
             runCatching { syncLocked(context.applicationContext) }
-                .onFailure { Log.w(TAG, "Sync failed: ${it.javaClass.simpleName}") }
+                .onFailure { Log.w(TAG, "Sync failed", it) }
+        }
+    }
+
+    /**
+     * An MMS is saved row first, then its parts, and a sync can run in
+     * between and index it without its text. Call once it's fully saved.
+     */
+    fun refreshMms(messageId: Long) {
+        stale += messageId
+        MessageChanges.notifyLocalChange()
+    }
+
+    /** How many messages are in the index, or null when search is off or it can't be read. */
+    suspend fun count(context: Context): Int? {
+        if (!enabled(context)) return null
+        return lock.withLock {
+            runCatching {
+                db(context.applicationContext).rawQuery("SELECT count(*) FROM docs", null).use { c ->
+                    if (c.moveToFirst()) c.getInt(0) else 0
+                }
+            }.onFailure { Log.w(TAG, "Count failed", it) }.getOrNull()
         }
     }
 
@@ -118,7 +144,7 @@ object SearchIndex {
                         rows += Scored(c.getLong(0), c.getLong(1), date, bm25(c.getBlob(3)) * recency)
                     }
                 }
-            }.onFailure { Log.w(TAG, "Search failed: ${it.javaClass.simpleName}") }
+            }.onFailure { Log.w(TAG, "Search failed", it) }
             rows
         }
         val top = scored.sortedWith(compareByDescending<Scored> { it.score }.thenByDescending { it.date }).take(MAX_RESULTS)
@@ -177,7 +203,8 @@ object SearchIndex {
 
         override fun onConfigure(db: SQLiteDatabase) {
             // Freed space is overwritten with zeros, so deleted messages' words don't linger.
-            db.execSQL("PRAGMA secure_delete = ON")
+            // This PRAGMA returns a row, which execSQL rejects on some Android versions.
+            db.rawQuery("PRAGMA secure_delete = ON", null).use { it.moveToFirst() }
         }
 
         override fun onCreate(db: SQLiteDatabase) {
@@ -213,6 +240,20 @@ object SearchIndex {
         val current = HashSet<Long>(smsIds.size + mmsIds.size)
         smsIds.forEach { current += smsDoc(it) }
         mmsIds.forEach { current += mmsDoc(it) }
+
+        // MMS saved since they were indexed: drop them so they're indexed again below.
+        val refresh = stale.toList()
+        stale.removeAll(refresh.toSet())
+        val redo = refresh.map(::mmsDoc).filter { it in indexed }
+        if (redo.isNotEmpty()) {
+            db.transaction {
+                redo.forEach { docId ->
+                    db.execSQL("DELETE FROM fts WHERE docid = $docId")
+                    db.execSQL("DELETE FROM docs WHERE docid = $docId")
+                }
+            }
+            indexed.removeAll(redo.toSet())
+        }
 
         val gone = indexed.filter { it !in current }
         if (gone.isNotEmpty()) {
