@@ -51,6 +51,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
         run: |
           ./gradlew assembleRelease \
             -PcoresmsVersionCode="${{ steps.version.outputs.code }}" \

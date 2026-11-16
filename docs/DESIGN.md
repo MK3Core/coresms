@@ -74,11 +74,18 @@ idea is still open.
 - A conversation you're actively texting in stays above the fold for 20
   minutes after its last message.
 - Every message shows its time: under the bubble, or after the sender's
-  name above it in a group. Tapping a message opens only the reactions; tap and hold opens Copy, Save,
-  Details, Delete and the rest, so a quick tap can't trigger them.
-  Photos and videos work the same; their hold menu has View (instead of
-  Copy) to open them full screen with Save and Share. Double-tap to open
-  was tried and dropped: every single tap had to wait 300ms for it.
+  name above it in a group. Tapping a photo or video opens it full screen (pinch to zoom,
+  Save, Share); tapping a text does nothing, so stray taps are harmless.
+  Tap and hold shows the reaction row plus **Actions…**, which opens View,
+  Copy, Details and Delete, one step away from reactions so they can't be
+  hit by accident. (Tried and dropped: tap to react with double-tap to
+  open, because every single tap had to wait 300ms; and tap to react with
+  View in the hold menu, because opening photos is the more common tap.)
+- The composer's "+" opens one panel with **Photos | GIFs | Faces**. GIFs
+  come from GIPHY at its loosest rating (R), trending until you search,
+  and the largest size that fits the carrier's MMS limit is attached.
+  Faces are built-in text faces (kaomoji like (╯°□°)╯︵ ┻━┻) added to the
+  message box, recent ones first.
   Reactions are a quiet line under the message listing each emoji and who
   sent it, always visible; there's no badge on the bubble's corner.
 - Two themes, chosen in Settings:

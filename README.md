@@ -37,10 +37,12 @@ real-world testing yet, so expect rough edges.
   CoreSMS needs your own number to keep groups together: it uses the SIM's,
   or finds it in messages your previous app sent, or you can enter it in
   Settings.
+- **GIFs and text faces.** The "+" button opens Photos, GIF search
+  (GIPHY) and built-in text faces like (╯°□°)╯︵ ┻━┻.
 - **Sending photos and videos.** Photos are resized to fit your carrier's
   MMS limit. Videos are sent as-is if they fit (most carriers allow about
   1 MB); compressing longer videos isn't built yet.
-- **Reactions** that work with iPhones: tap a message to react (tap and hold for view,
+- **Reactions** that work with iPhones: tap and hold a message to react (Actions… for
   copy, details and delete), and
   reactions from iPhones and Google Messages show on the message they're for
   instead of as separate texts, listed under the message with who sent
@@ -132,6 +134,10 @@ git push origin v0.1.0
 
 Signing uses the repository secrets `ANDROID_KEYSTORE_BASE64`,
 `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`.
+GIF search uses the `GIPHY_API_KEY` secret (a free key from
+developers.giphy.com); local builds read `giphyApiKey` from
+`local.properties`. Without a key the app still builds and the GIF tab says
+search isn't set up.
 Every release must be signed with the same key, or Android will refuse to
 update existing installs. Running the workflow by hand from the Actions tab
 builds a dev version instead, published as a prerelease tagged

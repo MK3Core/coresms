@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import io.github.mk3core.coresms.sms.SmsManagers
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -104,6 +105,10 @@ class ThreadActivity : ComponentActivity() {
                         onAttach = {
                             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
                         },
+                        onPickGif = ::attachGif,
+                        onInsertFace = { face ->
+                            draft = if (draft.isBlank()) face else draft.trimEnd() + " " + face
+                        },
                         onRemoveAttachment = { uri -> attachments = attachments - uri },
                         onSend = ::send,
                         onDismissError = { error = null },
@@ -124,6 +129,23 @@ class ThreadActivity : ComponentActivity() {
                     ),
                 )
             }
+        }
+    }
+
+    /** Downloads the largest size of [gif] that fits the carrier's MMS limit and attaches it. */
+    private suspend fun attachGif(gif: io.github.mk3core.coresms.gif.Gif): String? {
+        val limits = io.github.mk3core.coresms.mms.CarrierLimits.forSubscription(this, SmsManagers.defaultSubscription())
+        // Leave room for the message's other attachments and text, like MediaPrep does.
+        val budget = (limits.maxMessageBytes - 16 * 1024) / (attachments.size + 1)
+        val rendition = io.github.mk3core.coresms.gif.Giphy.bestFit(gif, budget)
+            ?: return getString(R.string.gif_too_big, budget / 1024)
+        return try {
+            val uri = io.github.mk3core.coresms.gif.Giphy.download(applicationContext, gif, rendition)
+            attachments = (attachments + uri).distinct().take(10)
+            null
+        } catch (e: Exception) {
+            Log.w(TAG, "GIF download failed", e)
+            getString(R.string.gif_load_failed)
         }
     }
 

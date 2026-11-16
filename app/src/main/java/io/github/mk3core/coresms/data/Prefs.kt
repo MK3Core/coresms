@@ -75,6 +75,15 @@ object Prefs {
     }
 
     /** Forgets everything about an MMS's download (on success, or before a manual retry). */
+    /** Text faces used most recently first, at most [limit]. */
+    fun recentFaces(context: Context, limit: Int = 8): List<String> =
+        prefs(context).getString(KEY_RECENT_FACES, null)?.split(FACE_SEPARATOR)?.filter { it.isNotEmpty() }?.take(limit).orEmpty()
+
+    fun useFace(context: Context, face: String) {
+        val list = (listOf(face) + recentFaces(context, 20)).distinct().take(20)
+        prefs(context).edit { putString(KEY_RECENT_FACES, list.joinToString(FACE_SEPARATOR)) }
+    }
+
     /** "retro" (the default) or "modern". */
     fun themeStyle(context: Context): String = prefs(context).getString(KEY_THEME, null) ?: "retro"
 
@@ -93,6 +102,8 @@ object Prefs {
     private const val KEY_DETECTED_NUMBER = "detected_number"
     private const val KEY_MMS_ATTEMPT_PREFIX = "mms_attempt_"
     private const val KEY_THEME = "theme_style"
+    private const val KEY_RECENT_FACES = "recent_faces"
+    private const val FACE_SEPARATOR = "\u0001"
 
     // "v2": marks made before v0.3.2 came from requesting the wrong link
     // (missing transaction id), so they're forgotten and retried once.

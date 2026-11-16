@@ -123,6 +123,8 @@ class ThreadActions(
     val onBack: () -> Unit,
     val onDraftChange: (String) -> Unit,
     val onAttach: () -> Unit,
+    val onPickGif: suspend (io.github.mk3core.coresms.gif.Gif) -> String?,
+    val onInsertFace: (String) -> Unit,
     val onRemoveAttachment: (android.net.Uri) -> Unit,
     val onSend: () -> Unit,
     val onDismissError: () -> Unit,
@@ -153,6 +155,17 @@ private const val DIVIDER_GAP_MS = 60 * 60 * 1000L
 @Composable
 fun ThreadScreen(state: ThreadState, actions: ThreadActions) {
     var showPeople by remember { mutableStateOf(false) }
+    var attachOpen by remember { mutableStateOf(false) }
+    if (attachOpen) {
+        AttachPanel(
+            AttachPanelActions(
+                onPickPhotos = actions.onAttach,
+                onPickGif = actions.onPickGif,
+                onInsertFace = actions.onInsertFace,
+                onDismiss = { attachOpen = false },
+            ),
+        )
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -200,7 +213,7 @@ fun ThreadScreen(state: ThreadState, actions: ThreadActions) {
                 },
             )
         },
-        bottomBar = { Composer(state, actions) },
+        bottomBar = { Composer(state, actions, onPlus = { attachOpen = true }) },
     ) { padding ->
         MessageList(state, actions, Modifier.padding(padding))
     }
@@ -374,16 +387,20 @@ private fun MessageRow(placement: Placement, isGroup: Boolean, people: List<Cont
                         when {
                             message.pending != null && message.pending.canRetry -> actions.onRetry(message)
                             message.status == MessageStatus.Failed -> actions.onRetry(message)
-                            canReact(message) -> reactOpen = true
-                            else -> menuOpen = true
                         }
                     },
-                    onHold = { menuOpen = true },
+                    onHold = { if (canReact(message)) reactOpen = true else menuOpen = true },
                 )
                 Box(Modifier.combinedClickable(onClick = gestures.onTap, onLongClick = gestures.onHold)) {
                     BubbleContent(message, placement, actions, gestures)
                 }
-                ReactionMenu(message, reactOpen, onDismiss = { reactOpen = false }, actions)
+                ReactionMenu(
+                    message,
+                    reactOpen,
+                    onDismiss = { reactOpen = false },
+                    onMoreActions = { reactOpen = false; menuOpen = true },
+                    actions,
+                )
                 MessageMenu(message, menuOpen, onDismiss = { menuOpen = false }, actions)
             }
         }
@@ -545,9 +562,8 @@ private fun PendingBubble(message: Message, shape: RoundedCornerShape, actions: 
 }
 
 /**
- * Photos and videos: tap reacts like any message; tap and hold opens the
- * message menu, whose View opens them full screen (pinch to zoom, Save,
- * Share). Other attachments (audio, contact cards, files) open on a tap.
+ * Tap opens an attachment (photos full screen with pinch to zoom, Save and
+ * Share); tap and hold brings up reactions, like any message.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -557,7 +573,7 @@ private fun AttachmentView(attachment: Attachment, outgoing: Boolean, gestures: 
         attachment.isImage || attachment.isVideo -> Box(
             Modifier
                 .clip(RoundedCornerShape(LocalChatStyle.current.mediaRadius))
-                .combinedClickable(onClick = gestures.onTap, onLongClick = gestures.onHold),
+                .combinedClickable(onClick = onOpen, onLongClick = gestures.onHold),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -629,7 +645,7 @@ private fun MediaGrid(items: List<Attachment>, gestures: Gestures, onOpen: (Atta
                             .weight(1f)
                             .aspectRatio(1f)
                             .background(chat.incomingBubble)
-                            .combinedClickable(onClick = gestures.onTap, onLongClick = gestures.onHold),
+                            .combinedClickable(onClick = { onOpen(attachment) }, onLongClick = gestures.onHold),
                         contentAlignment = Alignment.Center,
                     ) {
                         AsyncImage(
@@ -676,9 +692,15 @@ private fun ReactionLine(message: Message, people: List<Contact>, modifier: Modi
 
 private fun canReact(message: Message) = message.pending == null && message.status != MessageStatus.Failed
 
-/** Tap: just the reactions, so a quick tap can never copy or delete. */
+/** Tap and hold: the reactions, and Actions… for copy, details and delete one step further away. */
 @Composable
-private fun ReactionMenu(message: Message, open: Boolean, onDismiss: () -> Unit, actions: ThreadActions) {
+private fun ReactionMenu(
+    message: Message,
+    open: Boolean,
+    onDismiss: () -> Unit,
+    onMoreActions: () -> Unit,
+    actions: ThreadActions,
+) {
     DropdownMenu(expanded = open, onDismissRequest = onDismiss) {
         if (canReact(message)) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
@@ -695,10 +717,11 @@ private fun ReactionMenu(message: Message, open: Boolean, onDismiss: () -> Unit,
                 }
             }
         }
+        DropdownMenuItem(text = { Text(stringResource(R.string.more_actions)) }, onClick = onMoreActions)
     }
 }
 
-/** Tap and hold: copy, save, details, delete and the rest, kept apart from reactions. */
+/** Actions…: view, copy, details, delete and the rest, kept apart from reactions. */
 @Composable
 private fun MessageMenu(message: Message, open: Boolean, onDismiss: () -> Unit, actions: ThreadActions) {
     DropdownMenu(expanded = open, onDismissRequest = onDismiss) {
@@ -761,7 +784,7 @@ private fun DetailsDialog(details: MessageDetails, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun Composer(state: ThreadState, actions: ThreadActions) {
+private fun Composer(state: ThreadState, actions: ThreadActions, onPlus: () -> Unit) {
     val chat = LocalChatColors.current
     val isMms = state.isGroup || state.attachments.isNotEmpty()
     Column(
@@ -812,7 +835,7 @@ private fun Composer(state: ThreadState, actions: ThreadActions) {
             Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            IconButton(onClick = actions.onAttach) {
+            IconButton(onClick = onPlus) {
                 Icon(Icons.Filled.Add, stringResource(R.string.attach), tint = MaterialTheme.colorScheme.primary)
             }
             Box(

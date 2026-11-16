@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -7,6 +9,15 @@ plugins {
 // keystore (the release workflow sets it from repo secrets). Local and CI
 // debug builds don't need it.
 val releaseKeystore = System.getenv("ANDROID_KEYSTORE_PATH")?.let(::file)?.takeIf { it.exists() }
+
+// GIPHY API key for GIF search: GIPHY_API_KEY in the environment (the release
+// workflow sets it from a repo secret) or giphyApiKey in local.properties.
+// Builds without one still work; the GIF tab says search isn't set up.
+val giphyApiKey: String = System.getenv("GIPHY_API_KEY")?.takeIf { it.isNotBlank() }
+    ?: rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
+        Properties().apply { file.inputStream().use { load(it) } }.getProperty("giphyApiKey")
+    }
+    ?: ""
 
 android {
     namespace = "io.github.mk3core.coresms"
@@ -21,6 +32,7 @@ android {
         // Set by the release workflow: -PcoresmsVersionCode=N -PcoresmsVersionName=X.Y.Z
         versionCode = (findProperty("coresmsVersionCode") as String?)?.toInt() ?: 1
         versionName = (findProperty("coresmsVersionName") as String?) ?: "0.0.0-local"
+        buildConfigField("String", "GIPHY_API_KEY", "\"${giphyApiKey.filter { it.isLetterOrDigit() }}\"")
     }
 
     signingConfigs {
@@ -50,6 +62,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -70,4 +83,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

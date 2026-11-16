@@ -10,6 +10,7 @@ media3 = "1.11.1"
 work = "2.12.0"
 lifecycle = "2.11.0"
 junit = "4.13.2"
+orgJson = "20240303"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -27,6 +28,7 @@ coil-video = { module = "io.coil-kt.coil3:coil-video", version.ref = "coil" }
 coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 junit = { module = "junit:junit", version.ref = "junit" }
+org-json = { module = "org.json:json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
