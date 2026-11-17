@@ -229,7 +229,8 @@ private data class Arrival(val toUpdates: Boolean, val id: Int)
 /** humans | bots, under the title. bots shows how many are waiting. */
 @Composable
 private fun InboxTabs(showUpdates: Boolean, updatesWaiting: Int, arrival: Arrival?, onSelect: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+    // The extra gap leaves room for the "+1" beside "humans" without touching "bots".
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         InboxTab(
             stringResource(R.string.tab_conversations),
             selected = !showUpdates,
