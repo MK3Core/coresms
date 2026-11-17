@@ -125,10 +125,13 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onMove = { c, toUpdates ->
-                                lifecycleScope.launch(Dispatchers.IO) {
-                                    Updates.move(applicationContext, c, toUpdates)
-                                    MessageChanges.notifyLocalChange()
+                                // Saved and shown right away, so the row leaves with the swipe
+                                // instead of springing back until the list reloads.
+                                Updates.move(applicationContext, c, toUpdates)
+                                conversations = conversations.map {
+                                    if (it.threadId == c.threadId) it.copy(isUpdate = toUpdates) else it
                                 }
+                                MessageChanges.notifyLocalChange()
                             },
                             onFixPermissions = ::requestMissingPermissions,
                             onAddNumber = { startActivity(Intent(this, SettingsActivity::class.java)) },

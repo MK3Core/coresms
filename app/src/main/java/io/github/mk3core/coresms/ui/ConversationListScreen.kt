@@ -77,13 +77,13 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import kotlinx.coroutines.delay
 import io.github.mk3core.coresms.ui.theme.LocalChatColors
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.launch
 
 /** What the list needs to know to place each conversation. */
@@ -102,7 +102,7 @@ class ListActions(
     val onTogglePin: (Conversation) -> Unit,
     val onToggleRead: (Conversation) -> Unit,
     val onDelete: (Conversation) -> Unit,
-    /** Moves a conversation to Updates (or back), remembered for its sender. */
+    /** Moves a conversation to bots (or back to humans), remembered for its sender. */
     val onMove: (Conversation, toUpdates: Boolean) -> Unit,
     val onFixPermissions: () -> Unit,
     val onAddNumber: () -> Unit,
@@ -133,29 +133,17 @@ fun ConversationListScreen(
     BackHandler(enabled = searching) { closeSearch() }
     var confirmDelete by remember { mutableStateOf<Conversation?>(null) }
     var showUpdates by rememberSaveable { mutableStateOf(false) }
-    // Back from Updates returns to Conversations before leaving the app.
+    // Back from bots returns to humans before leaving the app.
     BackHandler(enabled = showUpdates && !searching) { showUpdates = false }
-    val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val movedToUpdates = stringResource(R.string.moved_to_updates)
-    val movedToConversations = stringResource(R.string.moved_to_conversations)
-    val undo = stringResource(R.string.undo)
+    // The tab a conversation was just moved to, which pulses to show where it went.
+    var arrival by remember { mutableStateOf<Arrival?>(null) }
     fun move(conversation: Conversation, toUpdates: Boolean) {
         actions.onMove(conversation, toUpdates)
-        scope.launch {
-            snackbar.currentSnackbarData?.dismiss()
-            val result = snackbar.showSnackbar(
-                if (toUpdates) movedToUpdates else movedToConversations,
-                actionLabel = undo,
-                duration = SnackbarDuration.Short,
-            )
-            if (result == SnackbarResult.ActionPerformed) actions.onMove(conversation, !toUpdates)
-        }
+        arrival = Arrival(toUpdates, (arrival?.id ?: 0) + 1)
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             Column {
                 TopAppBar(
@@ -183,7 +171,7 @@ fun ConversationListScreen(
                 )
                 if (!searching) {
                     val updatesWaiting = remember(sections) { sections.all().count { it.isUpdate && it.needsAttention } }
-                    InboxTabs(showUpdates, updatesWaiting, onSelect = { showUpdates = it })
+                    InboxTabs(showUpdates, updatesWaiting, arrival, onSelect = { showUpdates = it })
                 }
             }
         },
@@ -231,32 +219,71 @@ fun ConversationListScreen(
 
 private fun ListSections.all(): List<Conversation> = pinned + attention + earlier
 
-/** Conversations | Updates, under the title. Updates shows how many are waiting. */
+/** A conversation just moved into humans (false) or bots (true); [id] tells repeat moves apart. */
+private data class Arrival(val toUpdates: Boolean, val id: Int)
+
+/** humans | bots, under the title. bots shows how many are waiting. */
 @Composable
-private fun InboxTabs(showUpdates: Boolean, updatesWaiting: Int, onSelect: (Boolean) -> Unit) {
+private fun InboxTabs(showUpdates: Boolean, updatesWaiting: Int, arrival: Arrival?, onSelect: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        InboxTab(stringResource(R.string.tab_conversations), selected = !showUpdates, onClick = { onSelect(false) })
+        InboxTab(
+            stringResource(R.string.tab_conversations),
+            selected = !showUpdates,
+            arrival = arrival?.takeIf { !it.toUpdates },
+            onClick = { onSelect(false) },
+        )
         InboxTab(
             stringResource(R.string.tab_updates) + if (updatesWaiting > 0) " $updatesWaiting" else "",
             selected = showUpdates,
+            arrival = arrival?.takeIf { it.toUpdates },
             onClick = { onSelect(true) },
         )
     }
 }
 
+/** One tab. When a conversation lands in it, its name swells briefly and a "+1" floats up and fades. */
 @Composable
-private fun InboxTab(label: String, selected: Boolean, onClick: () -> Unit) {
-    val color = if (selected) MaterialTheme.colorScheme.onBackground else LocalChatColors.current.subtle
+private fun InboxTab(label: String, selected: Boolean, arrival: Arrival?, onClick: () -> Unit) {
+    val pulse = remember { Animatable(1f) }
+    val plusOne = remember { Animatable(0f) }
+    LaunchedEffect(arrival?.id) {
+        if (arrival == null) return@LaunchedEffect
+        launch {
+            pulse.animateTo(1.25f, tween(140))
+            pulse.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+        }
+        plusOne.snapTo(1f)
+        plusOne.animateTo(0f, tween(1100, delayMillis = 300))
+    }
+    val highlighted = selected || plusOne.value > 0f
+    val color = if (highlighted) MaterialTheme.colorScheme.onBackground else LocalChatColors.current.subtle
     Column(
         Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = color,
-        )
+        Row(verticalAlignment = Alignment.Top) {
+            Text(
+                label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = color,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = pulse.value
+                    scaleY = pulse.value
+                },
+            )
+            if (plusOne.value > 0f) {
+                Text(
+                    "+1",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(start = 4.dp).graphicsLayer {
+                        alpha = plusOne.value
+                        translationY = -(1f - plusOne.value) * 18.dp.toPx()
+                    },
+                )
+            }
+        }
         Spacer(Modifier.height(6.dp))
         Box(
             Modifier
@@ -270,7 +297,7 @@ private fun InboxTab(label: String, selected: Boolean, onClick: () -> Unit) {
 /**
  * Pinned conversations across the top, then every conversation newest first.
  * Unread ones stand out by weight and their count, not by position.
- * [showUpdates] picks the Updates tab's conversations instead of people's.
+ * [showUpdates] picks the bots tab instead of humans.
  */
 @Composable
 private fun PlainList(
@@ -315,7 +342,7 @@ private fun PlainList(
             }
         }
         items(all, key = { it.threadId }) {
-            SwipeToMove(it, menu) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
+            SwipeToMove(it, menu, Modifier.animateItem()) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
         }
     }
 }
@@ -462,23 +489,20 @@ private class RowMenu(
 )
 
 /**
- * Swipe a row toward the tab it should go to: Updates is on the right, so a
+ * Swipe a row toward the tab it should go to: bots is on the right, so a
  * conversation swipes right into it, and an update swipes left back out.
  */
 @Composable
-private fun SwipeToMove(conversation: Conversation, menu: RowMenu, content: @Composable () -> Unit) {
+private fun SwipeToMove(conversation: Conversation, menu: RowMenu, modifier: Modifier, content: @Composable () -> Unit) {
     val state = rememberSwipeToDismissBoxState()
-    val scope = rememberCoroutineScope()
     val toUpdates = !conversation.isUpdate
     SwipeToDismissBox(
         state = state,
+        modifier = modifier,
         enableDismissFromStartToEnd = toUpdates,
         enableDismissFromEndToStart = !toUpdates,
-        onDismiss = {
-            menu.onMove(conversation, toUpdates)
-            // Ready to swipe again if Undo brings it back.
-            scope.launch { state.reset() }
-        },
+        // The row has slid off screen; the list drops it right away and closes the gap.
+        onDismiss = { menu.onMove(conversation, toUpdates) },
         backgroundContent = {
             Box(
                 Modifier.fillMaxSize().background(LocalChatColors.current.subtle.copy(alpha = 0.18f)).padding(horizontal = 24.dp),
@@ -519,10 +543,6 @@ private fun WithMenu(conversation: Conversation, menu: RowMenu, content: @Compos
                 onClick = { open = false; menu.actions.onToggleRead(conversation) },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(if (conversation.isUpdate) R.string.move_to_conversations else R.string.move_to_updates)) },
-                onClick = { open = false; menu.onMove(conversation, !conversation.isUpdate) },
-            )
-            DropdownMenuItem(
                 text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                 onClick = { open = false; menu.onAskDelete(conversation) },
             )
@@ -530,7 +550,7 @@ private fun WithMenu(conversation: Conversation, menu: RowMenu, content: @Compos
     }
 }
 
-/** Conversations whose name or latest message matches, then matching messages from any conversation. */
+/** humans, then bots, whose name or latest message matches, then matching messages from any conversation. */
 @Composable
 private fun SearchResults(
     sections: ListSections,
@@ -565,8 +585,17 @@ private fun SearchResults(
         if (listState.isScrollInProgress) keyboard?.hide()
     }
     LazyColumn(modifier.fillMaxSize(), state = listState) {
-        if (conversations.isNotEmpty() && shown.isNotEmpty()) item(key = "h-conv") { SectionHeader(stringResource(R.string.search_section_conversations)) }
-        items(conversations, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
+        // Grouped by where each conversation lives now, so a moved one shows under its new tab.
+        val humans = conversations.filter { !it.isUpdate }
+        val bots = conversations.filter { it.isUpdate }
+        if (humans.isNotEmpty()) {
+            item(key = "h-humans") { SectionHeader(stringResource(R.string.search_section_conversations)) }
+            items(humans, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
+        }
+        if (bots.isNotEmpty()) {
+            item(key = "h-bots") { SectionHeader(stringResource(R.string.search_section_bots)) }
+            items(bots, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
+        }
         if (shown.isNotEmpty()) {
             item(key = "h-msg") { SectionHeader(stringResource(R.string.search_section_messages)) }
             items(shown, key = { it.messageKey }) { hit ->
@@ -629,6 +658,10 @@ private fun MessageHitRow(hit: MessageHit, conversation: Conversation, query: St
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
+                if (conversation.isUpdate) {
+                    Text(stringResource(R.string.search_bot_tag), style = MaterialTheme.typography.labelMedium, color = chat.subtle)
+                    Text(" · ", style = MaterialTheme.typography.labelMedium, color = chat.subtle)
+                }
                 Text(Times.short(context, hit.date), style = MaterialTheme.typography.labelMedium, color = chat.subtle)
             }
             Spacer(Modifier.height(2.dp))

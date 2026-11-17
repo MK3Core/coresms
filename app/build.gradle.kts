@@ -31,7 +31,7 @@ android {
         targetSdk = 37
         // Set by the release workflow: -PcoresmsVersionCode=N -PcoresmsVersionName=X.Y.Z
         versionCode = (findProperty("coresmsVersionCode") as String?)?.toInt() ?: 1
-        versionName = (findProperty("coresmsVersionName") as String?) ?: "0.7.0"
+        versionName = (findProperty("coresmsVersionName") as String?) ?: "0.7.1"
         buildConfigField("String", "GIPHY_API_KEY", "\"${giphyApiKey.filter { it.isLetterOrDigit() }}\"")
     }
 

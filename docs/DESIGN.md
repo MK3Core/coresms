@@ -129,17 +129,19 @@ idea is still open.
 
 (Add here as they come up.)
 
-## Conversations and Updates (v0.7.0)
+## humans and bots (v0.7.0, renamed in v0.7.1)
 
-The list has two tabs: **Conversations** (people) and **Updates** (codes,
+The list has two tabs, lowercase: **humans** (people) and **bots** (codes,
 alerts, automated texts), so automated messages stay out of the way. A
-conversation goes to Updates automatically when it's from a short code or
-named sender, an unknown toll-free number, or an unknown number you've never
+conversation goes to bots automatically when it's from a short code or named
+sender, an unknown toll-free number, or an unknown number you've never
 texted that sent a verification code. Saved contacts and groups never move
-on their own. Swipe a row toward the tab it should go to (Updates is on the
-right: swipe a conversation right into Updates, an update left back out), or
-long-press → Move to…;
-the choice is remembered for that sender, with Undo. Updates notify quietly
-(no sound or pop-up) on their own Android channel, adjustable in Android's
-settings. Back from Updates
-returns to Conversations. Search covers both tabs.
+on their own. Swipe a row toward the tab it should go to (bots is on the
+right: swipe a human right into bots, a bot left back out); swiping is the
+only way to move one. The choice is remembered for that sender. The row leaves with the
+swipe and the gap closes; the tab it went to swells briefly with a "+1"
+instead of a snackbar. Back from bots returns to humans. Search groups
+matching conversations under humans and bots, and tags message results from
+bots, using each conversation's current tab (nothing about tabs is stored in
+the word index, so it can't go stale). bots notify quietly (no sound or
+pop-up) on their own Android channel.
