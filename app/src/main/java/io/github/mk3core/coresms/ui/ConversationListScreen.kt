@@ -78,7 +78,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import kotlinx.coroutines.delay
 import io.github.mk3core.coresms.ui.theme.LocalChatColors
 import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -494,8 +496,15 @@ private class RowMenu(
  */
 @Composable
 private fun SwipeToMove(conversation: Conversation, menu: RowMenu, modifier: Modifier, content: @Composable () -> Unit) {
-    val state = rememberSwipeToDismissBoxState()
     val toUpdates = !conversation.isUpdate
+    val threshold = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }
+    // A fresh state per tab, and deliberately not saved: the list saves state by
+    // conversation, so a saved one would come back "swiped off" when the
+    // conversation shows up in the other tab, where that direction is
+    // disabled, and the swipe layout crashes placing it (v0.7.1).
+    val state = remember(conversation.threadId, toUpdates) {
+        SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, positionalThreshold = { threshold })
+    }
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
@@ -616,6 +625,9 @@ private fun SearchResults(
 }
 
 private const val SEARCH_PAUSE_MS = 200L
+
+/** How far a row must slide before letting go moves it (Material's default). */
+private val SWIPE_THRESHOLD = 56.dp
 
 @Composable
 private fun SectionHeader(text: String) {
