@@ -138,8 +138,8 @@ private fun ThemePicker() {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(R.string.settings_theme), style = MaterialTheme.typography.titleMedium)
         listOf(
-            ThemeStyle.Modern to R.string.settings_theme_modern,
             ThemeStyle.Retro to R.string.settings_theme_retro,
+            ThemeStyle.Modern to R.string.settings_theme_modern,
         ).forEach { (style, label) ->
             Row(
                 Modifier
