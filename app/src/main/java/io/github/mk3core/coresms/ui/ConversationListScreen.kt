@@ -86,6 +86,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import kotlinx.coroutines.launch
 
 /** What the list needs to know to place each conversation. */
@@ -279,10 +281,17 @@ private fun InboxTab(label: String, selected: Boolean, arrival: Arrival?, onClic
                     "+1",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(start = 4.dp).graphicsLayer {
-                        alpha = plusOne.value
-                        translationY = -(1f - plusOne.value) * 18.dp.toPx()
-                    },
+                    modifier = Modifier
+                        // Takes up no width, so the tabs never shift while it shows;
+                        // it's drawn just past the label's end instead.
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
+                            layout(0, placeable.height) { placeable.place(4.dp.roundToPx(), 0) }
+                        }
+                        .graphicsLayer {
+                            alpha = plusOne.value
+                            translationY = -(1f - plusOne.value) * 18.dp.toPx()
+                        },
                 )
             }
         }
