@@ -36,7 +36,7 @@
     <string name="tab_updates">bots</string>
     <string name="swipe_to_updates">bots →</string>
     <string name="swipe_to_conversations">← humans</string>
-    <string name="updates_empty">Codes, alerts and other automated texts land here. Swipe a conversation right to move it here, or an update left to send it back.</string>
+    <string name="updates_empty">Codes, alerts and other automated texts land here. Swipe a conversation right to move it here, or a bot left to send it back.</string>
     <string name="search_section_bots">bots</string>
     <string name="search_bot_tag">bot</string>
     <string name="channel_updates">Bots</string>
