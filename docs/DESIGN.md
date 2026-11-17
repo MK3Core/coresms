@@ -140,7 +140,12 @@ on their own. Swipe a row toward the tab it should go to (bots is on the
 right: swipe a human right into bots, a bot left back out); swiping is the
 only way to move one. The choice is remembered for that sender. The row leaves with the
 swipe and the gap closes; the tab it went to swells briefly with a "+1"
-instead of a snackbar. Back from bots returns to humans. Search groups
+instead of a snackbar. Back works as "up" a level, never as history: from a conversation it goes
+to the tab that conversation lives in (a bot's to bots, a human's to humans,
+however it was opened, including from search or a notification); from
+search it goes to humans; from bots to humans; from humans it leaves the
+app. The +1 plays once per move and never replays when the tabs come back
+into view. Search groups
 matching conversations under humans and bots, and tags message results from
 bots, using each conversation's current tab (nothing about tabs is stored in
 the word index, so it can't go stale). bots notify quietly (no sound or

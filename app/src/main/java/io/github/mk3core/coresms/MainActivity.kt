@@ -1,5 +1,6 @@
 package io.github.mk3core.coresms
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -43,6 +44,9 @@ class MainActivity : ComponentActivity() {
     private var numberUnknown by mutableStateOf(false)
     private var conversations by mutableStateOf(emptyList<Conversation>())
     private var messageSearch by mutableStateOf(false)
+    /** The bots tab is showing (otherwise humans). */
+    private var showBots by mutableStateOf(false)
+    private var searching by mutableStateOf(false)
 
     /**
      * Conversations that were on the first screen when you opened one. They
@@ -72,6 +76,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        showBots = savedInstanceState?.getBoolean(STATE_SHOW_BOTS) ?: false
+        searching = savedInstanceState?.getBoolean(STATE_SEARCHING) ?: false
+        // A rotation keeps whatever tab you'd moved to since.
+        if (savedInstanceState == null) applyListIntent(intent)
         refreshSetup()
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -100,8 +108,16 @@ class MainActivity : ComponentActivity() {
                         showPermissionBanner = missingPermissions.isNotEmpty(),
                         showNumberBanner = numberUnknown && missingPermissions.isEmpty(),
                         messageSearch = messageSearch,
+                        showBots = showBots,
+                        searching = searching,
                         actions = ListActions(
                             onOpen = ::openThread,
+                            onShowBots = { showBots = it },
+                            onSearching = { open ->
+                                searching = open
+                                // Up from search is the humans list.
+                                if (!open) showBots = false
+                            },
                             onNew = { startActivity(Intent(this, ComposeActivity::class.java)) },
                             onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                             onTogglePin = { c ->
@@ -146,6 +162,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        applyListIntent(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_SHOW_BOTS, showBots)
+        outState.putBoolean(STATE_SEARCHING, searching)
+    }
+
+    /** Arriving "up" from a conversation: show its tab, not search. */
+    private fun applyListIntent(intent: Intent?) {
+        if (intent?.hasExtra(EXTRA_SHOW_BOTS) != true) return
+        showBots = intent.getBooleanExtra(EXTRA_SHOW_BOTS, false)
+        searching = false
     }
 
     override fun onStart() {
@@ -204,8 +238,18 @@ class MainActivity : ComponentActivity() {
         startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
     }
 
-    private companion object {
+    companion object {
+        private const val EXTRA_SHOW_BOTS = "show_bots"
+        private const val STATE_SHOW_BOTS = "show_bots"
+        private const val STATE_SEARCHING = "searching"
+
+        /** The conversation list on the humans or bots tab, reusing the open list if there is one. */
+        fun listIntent(context: Context, showBots: Boolean): Intent =
+            Intent(context, MainActivity::class.java)
+                .putExtra(EXTRA_SHOW_BOTS, showBots)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
         /** A conversation you're actively texting in stays on the first screen this long after its last message. */
-        const val ACTIVE_WINDOW_MS = 20 * 60 * 1000L
+        private const val ACTIVE_WINDOW_MS = 20 * 60 * 1000L
     }
 }

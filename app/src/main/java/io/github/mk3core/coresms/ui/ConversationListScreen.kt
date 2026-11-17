@@ -101,6 +101,9 @@ data class ListSections(
 
 class ListActions(
     val onOpen: (Conversation) -> Unit,
+    val onShowBots: (Boolean) -> Unit,
+    /** Opens or closes search; closing it returns to the humans tab. */
+    val onSearching: (Boolean) -> Unit,
     val onNew: () -> Unit,
     val onSettings: () -> Unit,
     val onTogglePin: (Conversation) -> Unit,
@@ -123,24 +126,30 @@ fun ConversationListScreen(
     showNumberBanner: Boolean,
     /** Search looks inside every message, not just names and latest messages. */
     messageSearch: Boolean,
+    /** The bots tab is showing (otherwise humans). */
+    showBots: Boolean,
+    searching: Boolean,
     actions: ListActions,
 ) {
-    var searching by rememberSaveable { mutableStateOf(false) }
+    val showUpdates = showBots
     var query by rememberSaveable { mutableStateOf("") }
+    // Search can also be closed from outside (coming up from a conversation).
+    LaunchedEffect(searching) { if (!searching) query = "" }
     val keyboard = LocalSoftwareKeyboardController.current
     fun closeSearch() {
         keyboard?.hide()
-        searching = false
-        query = ""
+        actions.onSearching(false)
     }
     // Back (button or gesture) leaves search for the conversation list, not the app.
     BackHandler(enabled = searching) { closeSearch() }
     var confirmDelete by remember { mutableStateOf<Conversation?>(null) }
-    var showUpdates by rememberSaveable { mutableStateOf(false) }
     // Back from bots returns to humans before leaving the app.
-    BackHandler(enabled = showUpdates && !searching) { showUpdates = false }
+    BackHandler(enabled = showUpdates && !searching) { actions.onShowBots(false) }
     // The tab a conversation was just moved to, which pulses to show where it went.
     var arrival by remember { mutableStateOf<Arrival?>(null) }
+    // The newest arrival already animated. Tabs leave the screen during search,
+    // and without this they'd replay the last pulse when they come back.
+    var playedArrival by remember { mutableStateOf(0) }
     fun move(conversation: Conversation, toUpdates: Boolean) {
         actions.onMove(conversation, toUpdates)
         arrival = Arrival(toUpdates, (arrival?.id ?: 0) + 1)
@@ -168,14 +177,21 @@ fun ConversationListScreen(
                     },
                     actions = {
                         if (!searching) {
-                            IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, stringResource(R.string.search)) }
+                            IconButton(onClick = { actions.onSearching(true) }) { Icon(Icons.Filled.Search, stringResource(R.string.search)) }
                             IconButton(onClick = actions.onSettings) { Icon(Icons.Filled.Settings, stringResource(R.string.settings)) }
                         }
                     },
                 )
                 if (!searching) {
                     val updatesWaiting = remember(sections) { sections.all().count { it.isUpdate && it.needsAttention } }
-                    InboxTabs(showUpdates, updatesWaiting, arrival, onSelect = { showUpdates = it })
+                    InboxTabs(
+                        showUpdates,
+                        updatesWaiting,
+                        arrival,
+                        isNew = { it > playedArrival },
+                        onPlayed = { playedArrival = maxOf(playedArrival, it) },
+                        onSelect = actions.onShowBots,
+                    )
                 }
             }
         },
@@ -228,19 +244,30 @@ private data class Arrival(val toUpdates: Boolean, val id: Int)
 
 /** humans | bots, under the title. bots shows how many are waiting. */
 @Composable
-private fun InboxTabs(showUpdates: Boolean, updatesWaiting: Int, arrival: Arrival?, onSelect: (Boolean) -> Unit) {
-    // The extra gap leaves room for the "+1" beside "humans" without touching "bots".
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+private fun InboxTabs(
+    showUpdates: Boolean,
+    updatesWaiting: Int,
+    arrival: Arrival?,
+    isNew: (Int) -> Boolean,
+    onPlayed: (Int) -> Unit,
+    onSelect: (Boolean) -> Unit,
+) {
+    // The wide gap leaves clear room for the "+1" beside "humans".
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(TAB_GAP)) {
         InboxTab(
             stringResource(R.string.tab_conversations),
             selected = !showUpdates,
             arrival = arrival?.takeIf { !it.toUpdates },
+            isNew = isNew,
+            onPlayed = onPlayed,
             onClick = { onSelect(false) },
         )
         InboxTab(
             stringResource(R.string.tab_updates) + if (updatesWaiting > 0) " $updatesWaiting" else "",
             selected = showUpdates,
             arrival = arrival?.takeIf { it.toUpdates },
+            isNew = isNew,
+            onPlayed = onPlayed,
             onClick = { onSelect(true) },
         )
     }
@@ -248,11 +275,13 @@ private fun InboxTabs(showUpdates: Boolean, updatesWaiting: Int, arrival: Arriva
 
 /** One tab. When a conversation lands in it, its name swells briefly and a "+1" floats up and fades. */
 @Composable
-private fun InboxTab(label: String, selected: Boolean, arrival: Arrival?, onClick: () -> Unit) {
+private fun InboxTab(label: String, selected: Boolean, arrival: Arrival?, isNew: (Int) -> Boolean, onPlayed: (Int) -> Unit, onClick: () -> Unit) {
     val pulse = remember { Animatable(1f) }
     val plusOne = remember { Animatable(0f) }
     LaunchedEffect(arrival?.id) {
-        if (arrival == null) return@LaunchedEffect
+        // Only a move that hasn't been shown yet; the key stays the same while it plays.
+        if (arrival == null || !isNew(arrival.id)) return@LaunchedEffect
+        onPlayed(arrival.id)
         launch {
             pulse.animateTo(1.25f, tween(140))
             pulse.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
@@ -287,7 +316,7 @@ private fun InboxTab(label: String, selected: Boolean, arrival: Arrival?, onClic
                         // it's drawn just past the label's end instead.
                         .layout { measurable, constraints ->
                             val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
-                            layout(0, placeable.height) { placeable.place(4.dp.roundToPx(), 0) }
+                            layout(0, placeable.height) { placeable.place(6.dp.roundToPx(), 0) }
                         }
                         .graphicsLayer {
                             alpha = plusOne.value
@@ -635,6 +664,9 @@ private fun SearchResults(
 }
 
 private const val SEARCH_PAUSE_MS = 200L
+
+/** Space between the humans and bots tabs, on top of each tab's own padding. */
+private val TAB_GAP = 28.dp
 
 /** How far a row must slide before letting go moves it (Material's default). */
 private val SWIPE_THRESHOLD = 56.dp

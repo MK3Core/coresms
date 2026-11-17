@@ -10,6 +10,7 @@ import android.util.Log
 import io.github.mk3core.coresms.sms.SmsManagers
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
@@ -25,7 +26,9 @@ import io.github.mk3core.coresms.data.Attachment
 import io.github.mk3core.coresms.data.Carrier
 import io.github.mk3core.coresms.data.DownloadState
 import io.github.mk3core.coresms.data.Contact
+import io.github.mk3core.coresms.data.Conversation
 import io.github.mk3core.coresms.data.Conversations
+import io.github.mk3core.coresms.data.Updates
 import io.github.mk3core.coresms.data.Message
 import io.github.mk3core.coresms.data.MessageChanges
 import io.github.mk3core.coresms.data.MessageHit
@@ -84,6 +87,8 @@ class ThreadActivity : ComponentActivity() {
         draft = savedInstanceState?.getString(STATE_DRAFT) ?: intent.getStringExtra(EXTRA_DRAFT).orEmpty()
         attachments = IntentCompat.getParcelableArrayListExtra(intent, EXTRA_ATTACHMENTS, Uri::class.java).orEmpty()
         focusKey = intent.getStringExtra(EXTRA_FOCUS_KEY)
+        // Back (gesture or arrow) goes up to the list tab this conversation lives in.
+        onBackPressedDispatcher.addCallback(this) { navigateUp() }
         val focusDate = intent.getLongExtra(EXTRA_FOCUS_DATE, -1)
 
         lifecycleScope.launch {
@@ -116,7 +121,7 @@ class ThreadActivity : ComponentActivity() {
                         focusKey = focusKey,
                     ),
                     actions = ThreadActions(
-                        onBack = ::finish,
+                        onBack = ::navigateUp,
                         onDraftChange = { draft = it },
                         onAttach = {
                             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
@@ -194,6 +199,10 @@ class ThreadActivity : ComponentActivity() {
         val (loadedPeople, page) = withContext(Dispatchers.IO) {
             Conversations.recipients(context, threadId) to Messages.loadPage(context, threadId, pageSize)
         }
+        val newest = page.messages.maxOfOrNull { it.date } ?: 0L
+        isBot = withContext(Dispatchers.IO) {
+            Updates.isUpdate(context, Conversation(threadId, loadedPeople, newest, "", 0, false, false))
+        }
         val loadedMessages = withContext(Dispatchers.Default) { ReactionFolding.fold(page.messages) }
         people = loadedPeople
         messages = loadedMessages
@@ -203,6 +212,15 @@ class ThreadActivity : ComponentActivity() {
     }
 
     private fun recipients() = people.map { it.address }
+
+    /** Whether this conversation is in the bots tab, which is where up leads. */
+    private var isBot = false
+
+    /** Up a level: the conversation list, on this conversation's tab, with search closed. */
+    private fun navigateUp() {
+        startActivity(MainActivity.listIntent(this, showBots = isBot))
+        finish()
+    }
 
     /** Scrolled near the oldest loaded message: load another page of history. */
     private fun loadOlder() {
