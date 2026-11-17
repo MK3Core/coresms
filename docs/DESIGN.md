@@ -128,3 +128,18 @@ idea is still open.
 ## Ideas for unique elements
 
 (Add here as they come up.)
+
+## Conversations and Updates (v0.7.0)
+
+The list has two tabs: **Conversations** (people) and **Updates** (codes,
+alerts, automated texts), so automated messages stay out of the way. A
+conversation goes to Updates automatically when it's from a short code or
+named sender, an unknown toll-free number, or an unknown number you've never
+texted that sent a verification code. Saved contacts and groups never move
+on their own. Swipe a row toward the tab it should go to (Updates is on the
+right: swipe a conversation right into Updates, an update left back out), or
+long-press → Move to…;
+the choice is remembered for that sender, with Undo. Updates notify quietly
+(no sound or pop-up) on their own Android channel, adjustable in Android's
+settings. Back from Updates
+returns to Conversations. Search covers both tabs.

@@ -28,6 +28,27 @@ object Prefs {
         prefs(context).edit { putString(KEY_PINNED, current.joinToString(",")) }
     }
 
+    // Where a sender's conversations go, when moved by hand (see Updates).
+    // Keyed by Updates.key, so it follows the sender, not the thread.
+
+    /** True: always Updates. False: always Conversations. Null: sorted automatically. */
+    fun inboxChoice(context: Context, key: String): Boolean? = when (key) {
+        in prefs(context).getStringSet(KEY_TO_UPDATES, emptySet()).orEmpty() -> true
+        in prefs(context).getStringSet(KEY_TO_CONVERSATIONS, emptySet()).orEmpty() -> false
+        else -> null
+    }
+
+    fun setInboxChoice(context: Context, key: String, toUpdates: Boolean) {
+        val p = prefs(context)
+        val updates = p.getStringSet(KEY_TO_UPDATES, emptySet()).orEmpty().toMutableSet()
+        val conversations = p.getStringSet(KEY_TO_CONVERSATIONS, emptySet()).orEmpty().toMutableSet()
+        if (toUpdates) { updates += key; conversations -= key } else { conversations += key; updates -= key }
+        p.edit {
+            putStringSet(KEY_TO_UPDATES, updates)
+            putStringSet(KEY_TO_CONVERSATIONS, conversations)
+        }
+    }
+
     // Our own number, typed in by hand when the SIM doesn't report it.
 
     fun myNumber(context: Context): String? =
@@ -106,6 +127,8 @@ object Prefs {
         }
     }
 
+    private const val KEY_TO_UPDATES = "inbox_updates"
+    private const val KEY_TO_CONVERSATIONS = "inbox_conversations"
     private const val KEY_DETECTED_NUMBER = "detected_number"
     private const val KEY_MMS_ATTEMPT_PREFIX = "mms_attempt_"
     private const val KEY_THEME = "theme_style"

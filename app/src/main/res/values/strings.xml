@@ -32,6 +32,16 @@
     </plurals>
     <string name="settings_search_off_body">Search covers conversation names and their latest messages only. Turn this on to search every message.</string>
     <string name="settings">Settings</string>
+    <string name="tab_conversations">Conversations</string>
+    <string name="tab_updates">Updates</string>
+    <string name="move_to_updates">Move to Updates</string>
+    <string name="move_to_conversations">Move to Conversations</string>
+    <string name="swipe_to_updates">Updates →</string>
+    <string name="swipe_to_conversations">← Conversations</string>
+    <string name="moved_to_updates">Moved to Updates. Their texts will land here from now on.</string>
+    <string name="moved_to_conversations">Moved to Conversations</string>
+    <string name="updates_empty">Codes, alerts and other automated texts land here. Swipe a conversation to move it here or back.</string>
+    <string name="channel_updates">Updates</string>
     <string name="pin">Pin</string>
     <string name="unpin">Unpin</string>
     <string name="mark_read">Mark as read</string>
@@ -70,6 +80,7 @@
     <string name="close">Close</string>
     <string name="back">Back</string>
     <string name="cancel">Cancel</string>
+    <string name="undo">Undo</string>
     <string name="attachment_no_app">No app can open this attachment</string>
 
     <!-- MMS download -->

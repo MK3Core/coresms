@@ -77,6 +77,14 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import kotlinx.coroutines.delay
 import io.github.mk3core.coresms.ui.theme.LocalChatColors
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 /** What the list needs to know to place each conversation. */
 data class ListSections(
@@ -94,6 +102,8 @@ class ListActions(
     val onTogglePin: (Conversation) -> Unit,
     val onToggleRead: (Conversation) -> Unit,
     val onDelete: (Conversation) -> Unit,
+    /** Moves a conversation to Updates (or back), remembered for its sender. */
+    val onMove: (Conversation, toUpdates: Boolean) -> Unit,
     val onFixPermissions: () -> Unit,
     val onAddNumber: () -> Unit,
     /** Messages containing the query's words, best first (see SearchIndex). */
@@ -122,33 +132,60 @@ fun ConversationListScreen(
     // Back (button or gesture) leaves search for the conversation list, not the app.
     BackHandler(enabled = searching) { closeSearch() }
     var confirmDelete by remember { mutableStateOf<Conversation?>(null) }
+    var showUpdates by rememberSaveable { mutableStateOf(false) }
+    // Back from Updates returns to Conversations before leaving the app.
+    BackHandler(enabled = showUpdates && !searching) { showUpdates = false }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val movedToUpdates = stringResource(R.string.moved_to_updates)
+    val movedToConversations = stringResource(R.string.moved_to_conversations)
+    val undo = stringResource(R.string.undo)
+    fun move(conversation: Conversation, toUpdates: Boolean) {
+        actions.onMove(conversation, toUpdates)
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            val result = snackbar.showSnackbar(
+                if (toUpdates) movedToUpdates else movedToConversations,
+                actionLabel = undo,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) actions.onMove(conversation, !toUpdates)
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                navigationIcon = {
-                    if (searching) {
-                        IconButton(onClick = ::closeSearch) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                    navigationIcon = {
+                        if (searching) {
+                            IconButton(onClick = ::closeSearch) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                            }
                         }
-                    }
-                },
-                title = {
-                    if (searching) {
-                        SearchField(query, messageSearch, onChange = { query = it })
-                    } else {
-                        ListTitle()
-                    }
-                },
-                actions = {
-                    if (!searching) {
-                        IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, stringResource(R.string.search)) }
-                        IconButton(onClick = actions.onSettings) { Icon(Icons.Filled.Settings, stringResource(R.string.settings)) }
-                    }
-                },
-            )
+                    },
+                    title = {
+                        if (searching) {
+                            SearchField(query, messageSearch, onChange = { query = it })
+                        } else {
+                            ListTitle()
+                        }
+                    },
+                    actions = {
+                        if (!searching) {
+                            IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, stringResource(R.string.search)) }
+                            IconButton(onClick = actions.onSettings) { Icon(Icons.Filled.Settings, stringResource(R.string.settings)) }
+                        }
+                    },
+                )
+                if (!searching) {
+                    val updatesWaiting = remember(sections) { sections.all().count { it.isUpdate && it.needsAttention } }
+                    InboxTabs(showUpdates, updatesWaiting, onSelect = { showUpdates = it })
+                }
+            }
         },
         floatingActionButton = {
             if (!searching) {
@@ -169,11 +206,11 @@ fun ConversationListScreen(
             }
         },
     ) { padding ->
-        val menu = RowMenu(actions, onAskDelete = { confirmDelete = it })
+        val menu = RowMenu(actions, onAskDelete = { confirmDelete = it }, onMove = ::move)
         if (searching) {
             SearchResults(sections, query, messageSearch, actions, menu, Modifier.padding(padding))
         } else {
-            PlainList(sections, showPermissionBanner, showNumberBanner, actions, menu, Modifier.padding(padding))
+            PlainList(sections, showUpdates, showPermissionBanner, showNumberBanner, actions, menu, Modifier.padding(padding))
         }
     }
 
@@ -192,20 +229,63 @@ fun ConversationListScreen(
     }
 }
 
+private fun ListSections.all(): List<Conversation> = pinned + attention + earlier
+
+/** Conversations | Updates, under the title. Updates shows how many are waiting. */
+@Composable
+private fun InboxTabs(showUpdates: Boolean, updatesWaiting: Int, onSelect: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        InboxTab(stringResource(R.string.tab_conversations), selected = !showUpdates, onClick = { onSelect(false) })
+        InboxTab(
+            stringResource(R.string.tab_updates) + if (updatesWaiting > 0) " $updatesWaiting" else "",
+            selected = showUpdates,
+            onClick = { onSelect(true) },
+        )
+    }
+}
+
+@Composable
+private fun InboxTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    val color = if (selected) MaterialTheme.colorScheme.onBackground else LocalChatColors.current.subtle
+    Column(
+        Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = color,
+        )
+        Spacer(Modifier.height(6.dp))
+        Box(
+            Modifier
+                .width(28.dp)
+                .height(2.dp)
+                .background(if (selected) color else Color.Transparent, RoundedCornerShape(1.dp)),
+        )
+    }
+}
+
 /**
  * Pinned conversations across the top, then every conversation newest first.
  * Unread ones stand out by weight and their count, not by position.
+ * [showUpdates] picks the Updates tab's conversations instead of people's.
  */
 @Composable
 private fun PlainList(
     sections: ListSections,
+    showUpdates: Boolean,
     showPermissionBanner: Boolean,
     showNumberBanner: Boolean,
     actions: ListActions,
     menu: RowMenu,
     modifier: Modifier,
 ) {
-    val all = remember(sections) { (sections.attention + sections.earlier).sortedByDescending { it.date } }
+    val all = remember(sections, showUpdates) {
+        (sections.attention + sections.earlier).filter { it.isUpdate == showUpdates }.sortedByDescending { it.date }
+    }
+    val pinned = remember(sections, showUpdates) { sections.pinned.filter { it.isUpdate == showUpdates } }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
         item(key = "top") {
             Column(Modifier.fillMaxWidth()) {
@@ -223,10 +303,20 @@ private fun PlainList(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     ) { TextButton(onClick = actions.onAddNumber) { Text(stringResource(R.string.banner_number_button)) } }
                 }
-                if (sections.pinned.isNotEmpty()) PinnedRow(sections.pinned, menu)
+                if (pinned.isNotEmpty()) PinnedRow(pinned, menu)
+                if (showUpdates && all.isEmpty() && pinned.isEmpty()) {
+                    Text(
+                        stringResource(R.string.updates_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = LocalChatColors.current.subtle,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
+                    )
+                }
             }
         }
-        items(all, key = { it.threadId }) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
+        items(all, key = { it.threadId }) {
+            SwipeToMove(it, menu) { ConversationRow(it, emphasized = it.needsAttention, menu = menu) }
+        }
     }
 }
 
@@ -365,7 +455,47 @@ private fun ConversationRow(conversation: Conversation, emphasized: Boolean, men
     }
 }
 
-private class RowMenu(val actions: ListActions, val onAskDelete: (Conversation) -> Unit)
+private class RowMenu(
+    val actions: ListActions,
+    val onAskDelete: (Conversation) -> Unit,
+    val onMove: (Conversation, toUpdates: Boolean) -> Unit,
+)
+
+/**
+ * Swipe a row toward the tab it should go to: Updates is on the right, so a
+ * conversation swipes right into it, and an update swipes left back out.
+ */
+@Composable
+private fun SwipeToMove(conversation: Conversation, menu: RowMenu, content: @Composable () -> Unit) {
+    val state = rememberSwipeToDismissBoxState()
+    val scope = rememberCoroutineScope()
+    val toUpdates = !conversation.isUpdate
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = toUpdates,
+        enableDismissFromEndToStart = !toUpdates,
+        onDismiss = {
+            menu.onMove(conversation, toUpdates)
+            // Ready to swipe again if Undo brings it back.
+            scope.launch { state.reset() }
+        },
+        backgroundContent = {
+            Box(
+                Modifier.fillMaxSize().background(LocalChatColors.current.subtle.copy(alpha = 0.18f)).padding(horizontal = 24.dp),
+                // The label sits in the space the row uncovers as it slides away.
+                contentAlignment = if (toUpdates) Alignment.CenterStart else Alignment.CenterEnd,
+            ) {
+                Text(
+                    stringResource(if (toUpdates) R.string.swipe_to_updates else R.string.swipe_to_conversations),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+            }
+        },
+    ) {
+        Box(Modifier.background(MaterialTheme.colorScheme.background)) { content() }
+    }
+}
 
 /** Tap to open, long-press for pin / read / delete. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -389,6 +519,10 @@ private fun WithMenu(conversation: Conversation, menu: RowMenu, content: @Compos
                 onClick = { open = false; menu.actions.onToggleRead(conversation) },
             )
             DropdownMenuItem(
+                text = { Text(stringResource(if (conversation.isUpdate) R.string.move_to_conversations else R.string.move_to_updates)) },
+                onClick = { open = false; menu.onMove(conversation, !conversation.isUpdate) },
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                 onClick = { open = false; menu.onAskDelete(conversation) },
             )
@@ -407,7 +541,7 @@ private fun SearchResults(
     modifier: Modifier,
 ) {
     val q = query.trim()
-    val all = remember(sections) { sections.pinned + sections.attention + sections.earlier }
+    val all = remember(sections) { sections.all() }
     val byThread = remember(all) { all.associateBy { it.threadId } }
     val conversations = if (q.isEmpty()) emptyList() else all.filter { it.matches(q) }
     var hits by remember { mutableStateOf(emptyList<MessageHit>()) }

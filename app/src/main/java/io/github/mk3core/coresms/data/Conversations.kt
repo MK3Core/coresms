@@ -20,6 +20,8 @@ data class Conversation(
     val unreadCount: Int,
     val hasPendingMms: Boolean,
     val pinned: Boolean,
+    /** Codes, alerts and other automated texts, kept in the Updates tab (see Updates). */
+    val isUpdate: Boolean = false,
 ) {
     val isGroup: Boolean get() = people.size > 1
     val title: String
@@ -68,7 +70,7 @@ object Conversations {
                     val people = cursor.getString(3).orEmpty().split(' ')
                         .mapNotNull { it.toLongOrNull()?.let(addresses::get) }
                         .map { ContactsRepo.lookup(context, it) }
-                    result += Conversation(
+                    val conversation = Conversation(
                         threadId = threadId,
                         people = people,
                         date = cursor.getLong(1),
@@ -77,6 +79,7 @@ object Conversations {
                         hasPendingMms = threadId in pendingMms,
                         pinned = threadId in pinned,
                     )
+                    result += conversation.copy(isUpdate = Updates.isUpdate(context, conversation))
                 }
             }
         }

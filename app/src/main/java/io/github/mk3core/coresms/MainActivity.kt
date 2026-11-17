@@ -22,6 +22,7 @@ import io.github.mk3core.coresms.data.MessageChanges
 import io.github.mk3core.coresms.data.Prefs
 import io.github.mk3core.coresms.data.SearchIndex
 import io.github.mk3core.coresms.data.SelfNumbers
+import io.github.mk3core.coresms.data.Updates
 import io.github.mk3core.coresms.mms.IncomingMms
 import io.github.mk3core.coresms.mms.MmsRecovery
 import io.github.mk3core.coresms.notify.Notifications
@@ -121,6 +122,12 @@ class MainActivity : ComponentActivity() {
                                 lifecycleScope.launch(Dispatchers.IO) {
                                     Conversations.delete(applicationContext, c.threadId)
                                     Notifications.cancel(applicationContext, c.threadId)
+                                }
+                            },
+                            onMove = { c, toUpdates ->
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    Updates.move(applicationContext, c, toUpdates)
+                                    MessageChanges.notifyLocalChange()
                                 }
                             },
                             onFixPermissions = ::requestMissingPermissions,

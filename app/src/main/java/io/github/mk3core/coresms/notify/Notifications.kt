@@ -40,6 +40,8 @@ object Notifications {
 
     private const val CHANNEL_MESSAGES = "messages"
     private const val CHANNEL_ERRORS = "errors"
+    /** Texts sorted into Updates, on their own channel so they can be quieted separately in Android's settings. */
+    private const val CHANNEL_UPDATES = "updates"
     private const val OLD_CHANNEL_MMS = "mms" // v0.1.0's "saved for later" channel
 
     const val EXTRA_THREAD_ID = "thread_id"
@@ -54,6 +56,8 @@ object Notifications {
             listOf(
                 NotificationChannel(CHANNEL_MESSAGES, context.getString(R.string.channel_messages), NotificationManager.IMPORTANCE_HIGH),
                 NotificationChannel(CHANNEL_ERRORS, context.getString(R.string.channel_errors), NotificationManager.IMPORTANCE_HIGH),
+                // Low: no sound or pop-up, just an icon in the status bar and an entry in the shade.
+                NotificationChannel(CHANNEL_UPDATES, context.getString(R.string.channel_updates), NotificationManager.IMPORTANCE_LOW),
             ),
         )
         manager.deleteNotificationChannel(OLD_CHANNEL_MMS)
@@ -73,6 +77,7 @@ object Notifications {
             return
         }
         val conversation = Conversations.find(context, threadId) ?: return
+        val isUpdate = io.github.mk3core.coresms.data.Updates.isUpdate(context, conversation.copy(date = unread.last().date))
         val shortcutId = pushShortcut(context, conversation)
         val people = conversation.people.associateBy { it.address }
 
@@ -87,7 +92,7 @@ object Notifications {
             style.addMessage(previewText(context, message), message.date, contact?.let { person(context, it) })
         }
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+        val notification = NotificationCompat.Builder(context, if (isUpdate) CHANNEL_UPDATES else CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_notification)
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
