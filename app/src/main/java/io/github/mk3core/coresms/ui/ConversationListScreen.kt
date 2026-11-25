@@ -47,6 +47,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -143,6 +145,9 @@ fun ConversationListScreen(
     // Back (button or gesture) leaves search for the conversation list, not the app.
     BackHandler(enabled = searching) { closeSearch() }
     var confirmDelete by remember { mutableStateOf<Conversation?>(null) }
+    // Each tab remembers where you were in it, also across a visit to search.
+    val humansListState = rememberLazyListState()
+    val botsListState = rememberLazyListState()
     // Back from bots returns to humans before leaving the app.
     BackHandler(enabled = showUpdates && !searching) { actions.onShowBots(false) }
     // The tab a conversation was just moved to, which pulses to show where it went.
@@ -218,7 +223,16 @@ fun ConversationListScreen(
         if (searching) {
             SearchResults(sections, query, messageSearch, actions, menu, Modifier.padding(padding))
         } else {
-            PlainList(sections, showUpdates, showPermissionBanner, showNumberBanner, actions, menu, Modifier.padding(padding))
+            // A fresh list per tab, each keeping its own scroll position. One shared
+            // list carried humans' position into bots and animated humans' rows out
+            // of it, so bots could open scrolled partway or past its end.
+            key(showUpdates) {
+                PlainList(
+                    sections, showUpdates, showPermissionBanner, showNumberBanner, actions, menu,
+                    if (showUpdates) botsListState else humansListState,
+                    Modifier.padding(padding),
+                )
+            }
         }
     }
 
@@ -348,13 +362,14 @@ private fun PlainList(
     showNumberBanner: Boolean,
     actions: ListActions,
     menu: RowMenu,
+    listState: LazyListState,
     modifier: Modifier,
 ) {
     val all = remember(sections, showUpdates) {
         (sections.attention + sections.earlier).filter { it.isUpdate == showUpdates }.sortedByDescending { it.date }
     }
     val pinned = remember(sections, showUpdates) { sections.pinned.filter { it.isUpdate == showUpdates } }
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+    LazyColumn(modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
         item(key = "top") {
             Column(Modifier.fillMaxWidth()) {
                 if (showPermissionBanner) {
