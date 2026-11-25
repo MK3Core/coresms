@@ -86,8 +86,29 @@ a delay on our side.
 - **Group previews** in the conversation list show "Group conversation"
   rather than the latest message (Android stores an MMS's subject as the
   preview, and group texts have none). Deliberately left this way.
-- **App size.** Code shrinking (R8) is off, so the APK is larger than it
-  needs to be. Turn it on once there's a way to test release builds.
+- **App size: R8 turned on (2026-11-24), pending a phone test.** Before,
+  v0.7.6 was 33 MB, of which 32 MB was unshrunk library code
+  (`classes*.dex`); resources and native libraries are about 1 MB.
+  - **The change:** `isMinifyEnabled = true`, `isShrinkResources = true`
+    and `proguard-android-optimize.txt` on the release build, with
+    `-dontobfuscate` so crash reports stay readable. Estimated 5–8 MB.
+    It also makes Compose noticeably smoother, since Compose is designed
+    to be optimized by R8. CI now builds a release APK as well.
+  - **Nothing lost:** no features, languages or security. The app's
+    strings are English-only, and libraries' translations are kept
+    wherever they're used. There's no reflection in our code or in
+    `mmslib`, and the libraries ship their own keep rules.
+  - **Costs:** renamed classes make stack traces unreadable without the
+    release's `mapping.txt`. Add `-dontobfuscate` to keep names readable,
+    or save `mapping.txt` with each release. Release builds take about a
+    minute longer. Kotlin's parameter null checks are removed.
+  - **Risk:** R8 can strip something that's only found by name at runtime,
+    which shows up as a crash in release builds only. Smoke-test the
+    release APK before tagging: send and receive MMS, GIF picker, video
+    playback, notification reply.
+  - **Not worth doing:** dropping media3-ui, OkHttp (used only by Coil)
+    or the icons pack, or leaving out x86 native libraries and license
+    files. Each saves a few hundred KB at most once R8 is on.
 - **Contact cards** (vCard) open in another app rather than inside CoreSMS.
 
 ## Decided since

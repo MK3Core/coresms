@@ -48,7 +48,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 drops unused library code and resources (33 MB -> a few MB) and
+            // optimizes the rest. Names are kept (proguard-rules.pro) so crash
+            // reports stay readable.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (releaseKeystore != null) {
                 signingConfig = signingConfigs.getByName("release")
             }

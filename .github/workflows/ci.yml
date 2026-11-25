@@ -33,6 +33,11 @@ jobs:
       - name: Lint, unit tests and debug build
         run: ./gradlew lintDebug testDebugUnitTest assembleDebug
 
+      # Release builds run through R8, which debug builds don't, so build one
+      # too (unsigned here) to catch shrinking problems before a tag does.
+      - name: Release build
+        run: ./gradlew assembleRelease
+
       - name: Upload lint report
         if: failure()
         uses: actions/upload-artifact@v7
