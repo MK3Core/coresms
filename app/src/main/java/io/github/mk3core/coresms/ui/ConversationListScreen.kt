@@ -369,7 +369,14 @@ private fun PlainList(
         (sections.attention + sections.earlier).filter { it.isUpdate == showUpdates }.sortedByDescending { it.date }
     }
     val pinned = remember(sections, showUpdates) { sections.pinned.filter { it.isUpdate == showUpdates } }
-    LazyColumn(modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
+    LazyColumn(
+        modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = PaddingValues(bottom = 96.dp),
+        // No end-of-list stretch: on a list too short to scroll (often bots), a
+        // pull dragged every row down the screen and left it blank for a moment.
+        overscrollEffect = null,
+    ) {
         item(key = "top") {
             Column(Modifier.fillMaxWidth()) {
                 if (showPermissionBanner) {
